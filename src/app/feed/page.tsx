@@ -6,12 +6,20 @@ import { Feed } from '@/components/feed/Feed';
 import { Spinner } from '@/components/common/Spinner';
 import { useAuth } from '@/contexts/AuthContext';
 import { SearchWrapper } from '@/components/common/SearchWrapper';
+import { SuggestedUsersSidebar } from '@/components/feed/SuggestedUsersSidebar';
 
 export default function FeedPage() {
   return (
     <SearchWrapper>
       <div className="flex justify-center min-h-screen">
-        <FeedContent />
+        <div className="flex space-x-8 max-w-screen-lg mx-auto">
+          <div className="flex-1">
+            <FeedContent />
+          </div>
+          <div className="mt-8">
+            <SuggestedUsersSidebar />
+          </div>
+        </div>
       </div>
     </SearchWrapper>
   );
@@ -37,7 +45,7 @@ function FeedContent() {
   if (!user) return null;
 
   return (
-    <div className="max-w-screen-lg mx-auto container px-4 py-8">
+    <div className="container px-4 py-8">
       <Feed subscribedContent={false} />
     </div>
   );

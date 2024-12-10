@@ -26,6 +26,7 @@ export const Feed = ({ subscribedContent, creatorId, showCreatePost = true }: Fe
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'following' | 'forYou'>('following');
 
   const fetchPosts = useCallback(async () => {
     try {
@@ -45,49 +46,35 @@ export const Feed = ({ subscribedContent, creatorId, showCreatePost = true }: Fe
         `);
 
       if (creatorId) {
-        // Show specific creator's posts
         query = query.eq('creator_id', creatorId);
-      } else if (subscribedContent) {
-        // Show posts from subscribed creators
-        const { data: subscriptions } = await supabase
-          .from('subscriptions')
-          .select('creator_id')
-          .eq('subscriber_id', user.id)
-          .eq('status', 'active');
-
-        const creatorIds = subscriptions?.map(sub => sub.creator_id) || [];
-        if (creatorIds.length > 0) {
-          query = query.in('creator_id', creatorIds);
-        }
       } else {
-        // Show user's own posts
-        query = query.eq('creator_id', user.id);
-      }
-      
-      if (contentType !== 'all') {
-        query = query.eq('type', contentType);
+        if (activeTab === 'following') {
+          query = query.eq('creator_id', user.id);
+        } else if (activeTab === 'forYou') {
+          query = query.eq('is_public', true);
+        }
       }
 
       query = query.order('created_at', { ascending: sortBy === 'oldest' });
 
       const { data, error } = await query;
-      
+
       if (error) {
         console.error('Error details:', error);
         throw error;
       }
-      
+
       setPosts(data || []);
     } catch (err) {
       console.error('Error fetching posts:', err);
     } finally {
       setLoading(false);
     }
-  }, [creatorId, contentType, sortBy, subscribedContent]);
+  }, [activeTab, sortBy, creatorId]);
 
   useEffect(() => {
     fetchPosts();
-  }, [fetchPosts, contentType, searchQuery, subscribedContent, creatorId, sortBy]);
+  }, [fetchPosts, contentType, searchQuery, subscribedContent, creatorId, sortBy, activeTab]);
 
   // Add create post button at the top of the feed
   const renderCreatePost = () => {
@@ -140,6 +127,22 @@ export const Feed = ({ subscribedContent, creatorId, showCreatePost = true }: Fe
 
   return (
     <div className="space-y-6">
+      {!creatorId && (
+        <div className="flex space-x-4">
+          <button
+            className={`px-4 py-2 ${activeTab === 'following' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+            onClick={() => setActiveTab('following')}
+          >
+            Following
+          </button>
+          <button
+            className={`px-4 py-2 ${activeTab === 'forYou' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+            onClick={() => setActiveTab('forYou')}
+          >
+            For You
+          </button>
+        </div>
+      )}
       {renderCreatePost()}
       <FilterControls
         sortBy={sortBy}
