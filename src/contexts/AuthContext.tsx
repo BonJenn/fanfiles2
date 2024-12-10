@@ -11,6 +11,7 @@ interface Profile {
   email: string;
   avatar_url: string | null;
   bio: string | null;
+  subscription_price: number | null;
 }
 
 interface AuthContextType {

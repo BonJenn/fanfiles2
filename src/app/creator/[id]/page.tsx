@@ -6,6 +6,9 @@ import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
 import { Feed } from '@/components/feed/Feed';
 import { Spinner } from '@/components/common/Spinner';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
+import { loadStripe } from 'stripe';
 
 interface CreatorProfile {
   id: string;
@@ -14,7 +17,75 @@ interface CreatorProfile {
   avatar_url: string | null;
   subscriber_count: number;
   post_count: number;
+  subscription_price: number | null;
 }
+
+const SubscribeButton = ({ profile, onSubscribe }: { profile: CreatorProfile; onSubscribe: () => void }) => {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  const handleSubscribe = async () => {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (profile.subscription_price) {
+        const stripe = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+        if (!stripe) throw new Error('Failed to load Stripe');
+
+        const response = await fetch('/api/stripe/subscription', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            creatorId: profile.id,
+            priceAmount: profile.subscription_price,
+            returnUrl: window.location.href,
+          }),
+        });
+
+        const { url, error } = await response.json();
+        if (error) throw new Error(error);
+        
+        window.location.href = url;
+      } else {
+        // Handle free subscription
+        const { error } = await supabase
+          .from('subscriptions')
+          .insert({
+            subscriber_id: user.id,
+            creator_id: profile.id,
+            status: 'active',
+          });
+
+        if (error) throw error;
+        onSubscribe();
+      }
+    } catch (err) {
+      console.error('Subscription error:', err);
+      alert('Failed to process subscription. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const buttonText = profile.subscription_price 
+    ? `Subscribe for $${(profile.subscription_price / 100).toFixed(2)}/month`
+    : 'Subscribe for Free';
+
+  return (
+    <button
+      onClick={handleSubscribe}
+      disabled={loading}
+      className="bg-black text-white px-6 py-2 rounded-md hover:bg-gray-800 disabled:opacity-50"
+    >
+      {loading ? 'Processing...' : buttonText}
+    </button>
+  );
+};
 
 export default function CreatorProfile() {
   const params = useParams();
@@ -34,7 +105,8 @@ export default function CreatorProfile() {
             bio,
             avatar_url,
             subscriber_count,
-            post_count
+            post_count,
+            subscription_price
           `)
           .eq('id', creatorId)
           .single();
@@ -92,14 +164,12 @@ export default function CreatorProfile() {
               <span>{profile.post_count} posts</span>
             </div>
           </div>
-          <button className="bg-black text-white px-6 py-2 rounded-md hover:bg-gray-800">
-            Subscribe
-          </button>
+          <SubscribeButton profile={profile} onSubscribe={() => {}} />
         </div>
       </div>
 
       {/* Creator's Content */}
-      <Feed creatorId={creatorId} subscribedContent={false} />
+      <Feed creatorId={creatorId} subscribedContent={false} showCreatePost={false} />
     </div>
   );
 }

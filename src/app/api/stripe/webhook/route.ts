@@ -45,6 +45,22 @@ export async function POST(request: Request) {
       });
     }
 
+    if (event.type === 'customer.subscription.created' || 
+        event.type === 'customer.subscription.updated') {
+      const subscription = event.data.object as Stripe.Subscription;
+      const { creatorId, subscriberId } = subscription.metadata;
+
+      // Update subscription status in database
+      await supabase.from('subscriptions').upsert({
+        id: subscription.id,
+        creator_id: creatorId,
+        subscriber_id: subscriberId,
+        status: subscription.status,
+        current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+        stripe_subscription_id: subscription.id,
+      });
+    }
+
     return NextResponse.json({ received: true });
   } catch (error: any) {
     console.error('Stripe webhook error:', error);
