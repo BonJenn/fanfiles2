@@ -11,11 +11,16 @@ import { MenuIcon, XIcon } from 'lucide-react';
 
 export const Header = () => {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const handleSearch = (query: string) => {
     router.push(`/search?q=${encodeURIComponent(query)}`);
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.refresh();
   };
 
   return (
