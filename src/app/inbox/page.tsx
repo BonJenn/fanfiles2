@@ -1,23 +1,21 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Feed } from '@/components/feed/Feed';
-import { Spinner } from '@/components/common/Spinner';
-import { useAuth } from '@/contexts/AuthContext';
 import { SearchWrapper } from '@/components/common/SearchWrapper';
+import { InboxContent } from '@/components/inbox/InboxContent';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { Spinner } from '@/components/common/Spinner';
 
-export default function FeedPage() {
+export default function InboxPage() {
   return (
     <SearchWrapper>
-      <div className="flex justify-center min-h-screen">
-        <FeedContent />
-      </div>
+      <InboxPageContent />
     </SearchWrapper>
   );
 }
 
-function FeedContent() {
+function InboxPageContent() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
@@ -34,11 +32,8 @@ function FeedContent() {
       </div>
     );
   }
+
   if (!user) return null;
 
-  return (
-    <div className="max-w-screen-lg mx-auto container px-4 py-8">
-      <Feed subscribedContent={false} />
-    </div>
-  );
+  return <InboxContent />;
 }

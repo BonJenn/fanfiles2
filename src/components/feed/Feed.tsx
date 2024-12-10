@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { PostCard } from './PostCard';
 import { FilterControls } from './FilterControls';
 import { Post } from '@/types/post';
@@ -27,72 +27,63 @@ export const Feed = ({ subscribedContent, creatorId, showCreatePost = true }: Fe
   const [loading, setLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  const fetchPosts = async () => {
+  const fetchPosts = useCallback(async () => {
     try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       let query = supabase
         .from('posts')
         .select(`
           *,
-          creator:creator_id (
+          creator:profiles!creator_id (
             id,
             name,
             avatar_url
           )
         `);
 
-      // Apply creator filter if provided
       if (creatorId) {
+        // Show specific creator's posts
         query = query.eq('creator_id', creatorId);
-      }
+      } else if (subscribedContent) {
+        // Show posts from subscribed creators
+        const { data: subscriptions } = await supabase
+          .from('subscriptions')
+          .select('creator_id')
+          .eq('subscriber_id', user.id)
+          .eq('status', 'active');
 
-      // Apply content type filter
+        const creatorIds = subscriptions?.map(sub => sub.creator_id) || [];
+        if (creatorIds.length > 0) {
+          query = query.in('creator_id', creatorIds);
+        }
+      } else {
+        // Show user's own posts
+        query = query.eq('creator_id', user.id);
+      }
+      
       if (contentType !== 'all') {
         query = query.eq('type', contentType);
       }
 
-      // Apply search filter to both post description and creator name
-      if (searchQuery) {
-        query = query.or(`
-          description.ilike.%${searchQuery}%,
-          creator.name.ilike.%${searchQuery}%
-        `);
-      }
-
-      // Apply subscription filter
-      if (subscribedContent) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          query = query.eq('creator_id', user.id);
-        }
-      }
-
-      // Apply sorting
-      switch (sortBy) {
-        case 'newest':
-          query = query.order('created_at', { ascending: false });
-          break;
-        case 'oldest':
-          query = query.order('created_at', { ascending: true });
-          break;
-        case 'price_high':
-          query = query.order('price', { ascending: false });
-          break;
-        case 'price_low':
-          query = query.order('price', { ascending: true });
-          break;
-        default:
-          break;
-      }
+      query = query.order('created_at', { ascending: sortBy === 'oldest' });
 
       const { data, error } = await query;
-      if (error) throw error;
+      
+      if (error) {
+        console.error('Error details:', error);
+        throw error;
+      }
+      
       setPosts(data || []);
     } catch (err) {
       console.error('Error fetching posts:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [creatorId, contentType, sortBy, subscribedContent]);
 
   useEffect(() => {
     fetchPosts();
@@ -165,7 +156,7 @@ export const Feed = ({ subscribedContent, creatorId, showCreatePost = true }: Fe
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="max-w-screen-lg mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {posts.map((post) => (
             <PostCard key={post.id} post={post} />
           ))}

@@ -67,7 +67,7 @@ export function SettingsContent() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-2xl">
+    <div className="max-w-screen-lg mx-auto container px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">Account Settings</h1>
 
       <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">

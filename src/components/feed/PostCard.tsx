@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
 import { LockIcon, PlayIcon } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
+import { VideoModal } from '@/components/posts/VideoModal';
 
 interface PostCardProps {
   post: {
@@ -22,12 +23,56 @@ interface PostCardProps {
   };
 }
 
+const VideoContent = ({ url, onClick }: { url: string; onClick: () => void }) => {
+  const [thumbnail, setThumbnail] = useState<string>('');
+
+  useEffect(() => {
+    // Create thumbnail from video
+    const video = document.createElement('video');
+    video.src = url;
+    video.addEventListener('loadeddata', () => {
+      video.currentTime = 1; // Skip to 1 second
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
+      setThumbnail(canvas.toDataURL());
+    });
+  }, [url]);
+
+  return (
+    <div 
+      className="relative aspect-video w-full cursor-pointer group"
+      onClick={onClick}
+    >
+      {thumbnail ? (
+        <>
+          <img
+            src={thumbnail}
+            alt="Video thumbnail"
+            className="w-full h-full object-cover rounded-lg"
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-16 h-16 bg-black/50 rounded-full flex items-center justify-center group-hover:bg-black/75 transition-colors">
+              <PlayIcon className="w-8 h-8 text-white" />
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="w-full h-full bg-gray-100 animate-pulse rounded-lg" />
+      )}
+    </div>
+  );
+};
+
 export const PostCard = ({ post }: PostCardProps) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isBlurred = !post.is_public;
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
 
   const handleCreatorClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -85,7 +130,7 @@ export const PostCard = ({ post }: PostCardProps) => {
     }
     
     if (post.type === 'video') {
-      setIsPlaying(!isPlaying);
+      setIsVideoModalOpen(true);
     }
   };
 
@@ -114,7 +159,7 @@ export const PostCard = ({ post }: PostCardProps) => {
   }, [recordView]);
 
   return (
-    <div className="bg-white border rounded-lg overflow-hidden shadow-md transition-transform hover:shadow-lg hover:-translate-y-1">
+    <div className="container transition-transform hover:shadow-lg hover:-translate-y-1">
       {/* Creator Info */}
       <div className="p-3 flex items-center space-x-2 border-b">
         <div 
@@ -148,15 +193,14 @@ export const PostCard = ({ post }: PostCardProps) => {
             }`}
           />
         ) : (
-          <div className="relative w-full h-full">
-            <video
-              src={post.url}
-              autoPlay
-              muted
-              loop
-              className="w-full h-full object-cover"
+          <>
+            <VideoContent url={post.url} onClick={handleMediaClick} />
+            <VideoModal
+              isOpen={isVideoModalOpen}
+              onClose={() => setIsVideoModalOpen(false)}
+              videoUrl={post.url}
             />
-          </div>
+          </>
         )}
 
         {/* Premium Content Overlay */}
