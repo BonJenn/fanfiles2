@@ -35,7 +35,11 @@ export const Header = () => {
             <XIcon className="w-6 h-6" />
           </button>
           <div className="flex flex-col md:flex-row">
-            <Link href={`/creator/${user.id}`} className="p-4 text-darkestBlue">My Profile</Link>
+            {user && (
+              <Link href={`/creator/${user.id}`} className="p-4 text-darkestBlue">
+                My Profile
+              </Link>
+            )}
             <Link href="/dashboard" className="p-4 text-darkestBlue">Dashboard</Link>
             <Link href="/settings" className="p-4 text-darkestBlue">Settings</Link>
             <button onClick={handleSignOut} className="p-4 text-darkestBlue">Sign Out</button>
