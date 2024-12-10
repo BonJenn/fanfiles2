@@ -62,7 +62,12 @@ export function MessageView({ threadId, onBack }: MessageViewProps) {
         .order('created_at', { ascending: true });
 
       if (!error && messages) {
-        setMessages(messages);
+        const formattedMessages = messages.map(message => ({
+          ...message,
+          sender: message.sender[0]
+        }));
+
+        setMessages(formattedMessages);
         scrollToBottom();
       }
       setLoading(false);
