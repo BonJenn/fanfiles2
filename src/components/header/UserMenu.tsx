@@ -40,7 +40,6 @@ export const UserMenu = () => {
 
   return (
     <div className="flex items-center space-x-4">
-      <InboxIcon />
       <div className="relative" onMouseLeave={() => setMenuOpen(false)}>
         <button
           onClick={() => setMenuOpen(!menuOpen)}
@@ -55,35 +54,14 @@ export const UserMenu = () => {
               className="w-full h-full object-cover"
             />
           </div>
-          <span className="text-gray-700">{profile.name}</span>
         </button>
 
         {menuOpen && (
           <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1" style={{ marginTop: '-3px' }}>
-            <Link
-              href={`/creator/${user.id}`}
-              className="block px-4 py-2 text-darkestBlue hover:bg-lighterBlue"
-            >
-              My Profile
-            </Link>
-            <Link
-              href="/dashboard"
-              className="block px-4 py-2 text-darkestBlue hover:bg-lighterBlue"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/settings"
-              className="block px-4 py-2 text-darkestBlue hover:bg-lighterBlue"
-            >
-              Settings
-            </Link>
-            <button
-              onClick={handleSignOut}
-              className="block w-full text-left px-4 py-2 text-darkestBlue hover:bg-lighterBlue"
-            >
-              Sign Out
-            </button>
+            <Link href={`/creator/${user.id}`} className="block px-4 py-2 text-darkestBlue hover:bg-lighterBlue">My Profile</Link>
+            <Link href="/dashboard" className="block px-4 py-2 text-darkestBlue hover:bg-lighterBlue">Dashboard</Link>
+            <Link href="/settings" className="block px-4 py-2 text-darkestBlue hover:bg-lighterBlue">Settings</Link>
+            <button onClick={handleSignOut} className="block w-full text-left px-4 py-2 text-darkestBlue hover:bg-lighterBlue">Sign Out</button>
           </div>
         )}
       </div>

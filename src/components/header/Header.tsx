@@ -31,10 +31,14 @@ export const Header = () => {
         </button>
 
         <div className={`fixed inset-0 bg-white z-40 transform ${menuOpen ? 'translate-x-0' : 'translate-x-full'} transition-transform duration-300 ease-in-out md:static md:flex md:items-center md:justify-between`}>
+          <button className="absolute top-4 right-4" onClick={() => setMenuOpen(false)}>
+            <XIcon className="w-6 h-6" />
+          </button>
           <div className="flex flex-col md:flex-row">
-            <Link href="/" className="p-4 text-darkestBlue">Home</Link>
-            <Link href="/feed" className="p-4 text-darkestBlue">Feed</Link>
-            {/* Add more links as needed */}
+            <Link href={`/creator/${user.id}`} className="p-4 text-darkestBlue">My Profile</Link>
+            <Link href="/dashboard" className="p-4 text-darkestBlue">Dashboard</Link>
+            <Link href="/settings" className="p-4 text-darkestBlue">Settings</Link>
+            <button onClick={handleSignOut} className="p-4 text-darkestBlue">Sign Out</button>
           </div>
         </div>
 

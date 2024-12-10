@@ -67,10 +67,11 @@ button:hover {
 
 @media (max-width: 768px) {
   .feed-container {
-    padding: 0 16px; /* Add padding for mobile */
+    padding: 0 16px;
+    margin: 0 auto;
   }
 
   .grid {
-    grid-template-columns: 1fr; /* Single column on mobile */
+    grid-template-columns: 1fr;
   }
 }
