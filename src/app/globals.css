@@ -3,13 +3,16 @@
 @tailwind utilities;
 
 /* Global Styles */
+body, html {
+  overflow-x: hidden;
+}
+
 body {
   background: linear-gradient(135deg, #a8edea, #fed6e3);
   color: #333;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   margin: 0;
   padding: 0;
-  overflow-x: hidden;
   transition: background 0.3s ease;
   min-height: 100vh;
 }
@@ -22,6 +25,8 @@ body {
   padding: 20px;
   margin: 20px;
   transition: all 0.3s ease;
+  max-width: 100%;
+  padding: 0 16px;
 }
 
 button {
@@ -54,4 +59,8 @@ button:hover {
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.3);
+}
+
+.flex {
+  flex-wrap: wrap;
 }

@@ -66,6 +66,8 @@ const VideoContent = ({ url, onClick }: { url: string; onClick: () => void }) =>
         crossOrigin="anonymous"
         preload="metadata"
         playsInline
+        autoPlay
+        muted
       />
       
       {thumbnail ? (
