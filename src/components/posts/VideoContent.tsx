@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { PlayIcon } from 'lucide-react';
 
 const VideoContent = ({ url, onClick }: { url: string; onClick: () => void }) => {
   const [thumbnail, setThumbnail] = useState<string>('');
