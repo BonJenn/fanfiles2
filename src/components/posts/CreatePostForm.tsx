@@ -51,15 +51,25 @@ export const CreatePostForm = ({ onSuccess }: CreatePostFormProps) => {
       const fileExt = formData.file.name.split('.').pop();
       const fileName = `${user.id}-${Math.random()}.${fileExt}`;
 
+      // Simulate upload progress since Supabase doesn't provide progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return prev;
+          }
+          return prev + 10;
+        });
+      }, 500);
+
       const { error: uploadError } = await supabase.storage
         .from('posts')
         .upload(fileName, formData.file, {
-          upsert: true,
-          onUploadProgress: (progress) => {
-            const percent = Math.round((progress.loaded * 100) / progress.total);
-            setUploadProgress(percent);
-          },
+          upsert: true
         });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
 
       if (uploadError) throw uploadError;
 
