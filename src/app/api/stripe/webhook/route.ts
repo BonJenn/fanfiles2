@@ -56,8 +56,7 @@ export async function POST(request: Request) {
 
     if (event.type === 'customer.subscription.created' || 
         event.type === 'customer.subscription.updated' ||
-        event.type === 'customer.subscription.deleted' ||
-        event.type === 'customer.subscription.canceled') {
+        event.type === 'customer.subscription.deleted') {
       console.log('Processing subscription event');
       
       const subscription = event.data.object as Stripe.Subscription;
@@ -86,8 +85,7 @@ export async function POST(request: Request) {
         id: subscription.id,
         creator_id: creatorId,
         subscriber_id: subscriberId,
-        status: (event.type === 'customer.subscription.deleted' || 
-                event.type === 'customer.subscription.canceled') ? 'cancelled' : subscription.status,
+        status: (event.type === 'customer.subscription.deleted') ? 'cancelled' : subscription.status,
         current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
         stripe_subscription_id: subscription.id,
       });
