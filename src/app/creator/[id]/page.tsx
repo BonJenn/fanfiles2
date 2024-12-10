@@ -8,7 +8,7 @@ import { Feed } from '@/components/feed/Feed';
 import { Spinner } from '@/components/common/Spinner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { loadStripe } from 'stripe';
+import { loadStripe } from '@stripe/stripe-js';
 
 interface CreatorProfile {
   id: string;

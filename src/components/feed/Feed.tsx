@@ -96,7 +96,7 @@ export const Feed = ({ subscribedContent, creatorId, showCreatePost = true }: Fe
 
   useEffect(() => {
     fetchPosts();
-  }, [contentType, searchQuery, subscribedContent, creatorId, sortBy]);
+  }, [fetchPosts, contentType, searchQuery, subscribedContent, creatorId, sortBy]);
 
   // Add create post button at the top of the feed
   const renderCreatePost = () => {

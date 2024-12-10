@@ -2,6 +2,7 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { supabase } from '@/lib/supabase';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2024-11-20.acacia',
@@ -49,6 +50,9 @@ export async function POST(request: Request) {
         event.type === 'customer.subscription.updated') {
       const subscription = event.data.object as Stripe.Subscription;
       const { creatorId, subscriberId } = subscription.metadata;
+
+      const cookieStore = cookies();
+      const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
       // Update subscription status in database
       await supabase.from('subscriptions').upsert({
