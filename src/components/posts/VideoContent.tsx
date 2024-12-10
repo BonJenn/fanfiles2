@@ -62,12 +62,13 @@ const VideoContent = ({ url, onClick }: { url: string; onClick: () => void }) =>
       <video 
         ref={videoRef}
         src={url}
-        className="hidden"
+        className="w-full h-full object-cover rounded-lg"
         crossOrigin="anonymous"
         preload="metadata"
         playsInline
         autoPlay
         muted
+        controls
       />
       
       {thumbnail ? (

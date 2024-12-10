@@ -64,3 +64,13 @@ button:hover {
 .flex {
   flex-wrap: wrap;
 }
+
+@media (max-width: 768px) {
+  .feed-container {
+    padding: 0 16px; /* Add padding for mobile */
+  }
+
+  .grid {
+    grid-template-columns: 1fr; /* Single column on mobile */
+  }
+}
