@@ -43,7 +43,7 @@ export const UserMenu = () => {
       <div className="relative" onMouseLeave={() => setMenuOpen(false)}>
         <button
           onClick={() => setMenuOpen(!menuOpen)}
-          className="flex items-center space-x-2 hover:opacity-80"
+          className="flex items-center space-x-2 bg-gray-100 p-2 rounded-full"
         >
           <div className="w-8 h-8 rounded-full overflow-hidden">
             <Image

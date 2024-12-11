@@ -30,17 +30,17 @@ body {
 }
 
 button {
-  background-color: #ff9a9e;
+  
   border: none;
   border-radius: 8px;
-  color: white;
+  color: rgb(94, 94, 208);
   padding: 10px 20px;
   cursor: pointer;
   transition: background 0.3s ease;
 }
 
 button:hover {
-  background-color: #ff6a88;
+  background-color: #ffe4e9;
 }
 
 ::-webkit-scrollbar {

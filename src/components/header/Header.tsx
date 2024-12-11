@@ -31,37 +31,44 @@ export const Header = () => {
           FanFiles
         </Link>
 
-        <button className="md:hidden" onClick={() => setMenuOpen(!menuOpen)}>
-          {menuOpen ? <XIcon className="w-6 h-6" /> : <MenuIcon className="w-6 h-6" />}
-        </button>
-
-        <div className={`fixed inset-0 bg-white z-40 transform ${menuOpen ? 'translate-x-0' : 'translate-x-full'} transition-transform duration-300 ease-in-out md:static md:flex md:items-center md:justify-between`}>
-          <button className="absolute top-4 right-4" onClick={() => setMenuOpen(false)}>
-            <XIcon className="w-6 h-6" />
-          </button>
-          <div className="flex flex-col md:flex-row">
-            {user && (
-              <Link href={`/creator/${user.id}`} className="p-4 text-darkestBlue">
-                My Profile
-              </Link>
-            )}
-            <Link href="/dashboard" className="p-4 text-darkestBlue">Dashboard</Link>
-            <Link href="/settings" className="p-4 text-darkestBlue">Settings</Link>
-            <button onClick={handleSignOut} className="p-4 text-darkestBlue">Sign Out</button>
-          </div>
-        </div>
-
-        {/* Conditionally render Search Bar */}
+        {/* Search Bar */}
         {user && (
-          <div className="max-w-md w-full mx-4">
+          <div className="flex-1 mx-4">
             <Suspense fallback={<Spinner />}>
               <SearchBar onSearch={handleSearch} />
             </Suspense>
           </div>
         )}
 
-        {/* User Menu */}
-        <UserMenu />
+        {/* Hamburger Menu and User Menu */}
+        <div className="flex items-center space-x-4">
+          <button className="md:hidden" onClick={() => setMenuOpen(!menuOpen)}>
+            {menuOpen ? <XIcon className="w-6 h-6 text-blue-500" /> : <MenuIcon className="w-6 h-6 text-blue-500" />}
+          </button>
+          <UserMenu />
+        </div>
+
+        <div className={`fixed inset-0 bg-white z-40 transform ${menuOpen ? 'translate-x-0' : 'translate-x-full'} transition-transform duration-300 ease-in-out md:hidden`}>
+          <button className="absolute top-4 right-4" onClick={() => setMenuOpen(false)}>
+            <XIcon className="w-6 h-6" />
+          </button>
+          <div className="flex flex-col">
+            {user && (
+              <Link href={`/creator/${user.id}`} className="p-4 text-darkestBlue" onClick={() => setMenuOpen(false)}>
+                My Profile
+              </Link>
+            )}
+            <Link href="/dashboard" className="p-4 text-darkestBlue" onClick={() => setMenuOpen(false)}>
+              Dashboard
+            </Link>
+            <Link href="/settings" className="p-4 text-darkestBlue" onClick={() => setMenuOpen(false)}>
+              Settings
+            </Link>
+            <button onClick={() => { handleSignOut(); setMenuOpen(false); }} className="p-4 text-darkestBlue">
+              Sign Out
+            </button>
+          </div>
+        </div>
       </div>
     </header>
   );

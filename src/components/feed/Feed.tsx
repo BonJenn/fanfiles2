@@ -92,7 +92,7 @@ export const Feed = ({ subscribedContent, creatorId, showCreatePost = true }: Fe
             />
           </div>
         ) : (
-          <div className="p-8 text-center">
+          <div className="p-8 text-center mt-4">
             <h3 className="text-2xl font-semibold mb-4">Share Your Content</h3>
             <p className="text-gray-600 mb-6">Upload images or videos to share with your audience</p>
             <button
@@ -127,8 +127,18 @@ export const Feed = ({ subscribedContent, creatorId, showCreatePost = true }: Fe
 
   return (
     <div className="space-y-6">
+   
+      {renderCreatePost()}
+      <FilterControls
+        sortBy={sortBy}
+        contentType={contentType}
+        onSortChange={setSortBy}
+        onTypeChange={setContentType}
+        onSearch={setSearchQuery}
+      />
+
       {!creatorId && (
-        <div className="flex space-x-4">
+        <div className="flex justify-center space-x-4">
           <button
             className={`px-4 py-2 ${activeTab === 'following' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
             onClick={() => setActiveTab('following')}
@@ -143,14 +153,6 @@ export const Feed = ({ subscribedContent, creatorId, showCreatePost = true }: Fe
           </button>
         </div>
       )}
-      {renderCreatePost()}
-      <FilterControls
-        sortBy={sortBy}
-        contentType={contentType}
-        onSortChange={setSortBy}
-        onTypeChange={setContentType}
-        onSearch={setSearchQuery}
-      />
       
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -159,7 +161,7 @@ export const Feed = ({ subscribedContent, creatorId, showCreatePost = true }: Fe
           ))}
         </div>
       ) : (
-        <div className="max-w-screen-lg mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="max-w-screen-lg mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 justify-items-center">
           {posts.map((post) => (
             <PostCard key={post.id} post={post} />
           ))}
