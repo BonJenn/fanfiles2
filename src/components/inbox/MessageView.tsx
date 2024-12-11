@@ -70,7 +70,7 @@ export function MessageView({ threadId, onBack }: MessageViewProps) {
 
     fetchMessages();
 
-    // Mark messages as read
+    // Mark messages as red
     supabase
       .from('messages')
       .update({ read_at: new Date().toISOString() })
