@@ -40,6 +40,7 @@ export const UserMenu = () => {
 
   return (
     <div className="flex items-center space-x-4">
+      <InboxIcon />
       <div className="relative" onMouseLeave={() => setMenuOpen(false)}>
         <button
           onClick={() => setMenuOpen(!menuOpen)}

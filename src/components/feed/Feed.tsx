@@ -27,6 +27,7 @@ export const Feed = ({ subscribedContent, creatorId, showCreatePost = true }: Fe
   const [loading, setLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'following' | 'forYou'>('following');
+  const [error, setError] = useState<string | null>(null);
 
   const fetchPosts = useCallback(async () => {
     try {
@@ -47,9 +48,25 @@ export const Feed = ({ subscribedContent, creatorId, showCreatePost = true }: Fe
 
       if (creatorId) {
         query = query.eq('creator_id', creatorId);
+      } else if (subscribedContent) {
+        const { data: subscriptions } = await supabase
+          .from('subscriptions')
+          .select('creator_id')
+          .eq('subscriber_id', user.id)
+          .eq('status', 'active');
+
+        const creatorIds = subscriptions?.map(sub => sub.creator_id) || [];
+        query = query.in('creator_id', creatorIds);
       } else {
         if (activeTab === 'following') {
-          query = query.eq('creator_id', user.id);
+          const { data: following } = await supabase
+            .from('subscriptions')
+            .select('creator_id')
+            .eq('subscriber_id', user.id)
+            .eq('status', 'active');
+
+          const followingIds = following?.map(f => f.creator_id) || [];
+          query = query.in('creator_id', followingIds);
         } else if (activeTab === 'forYou') {
           query = query.eq('is_public', true);
         }
@@ -70,7 +87,7 @@ export const Feed = ({ subscribedContent, creatorId, showCreatePost = true }: Fe
     } finally {
       setLoading(false);
     }
-  }, [activeTab, sortBy, creatorId]);
+  }, [activeTab, sortBy, creatorId, subscribedContent]);
 
   useEffect(() => {
     fetchPosts();
@@ -165,6 +182,12 @@ export const Feed = ({ subscribedContent, creatorId, showCreatePost = true }: Fe
           {posts.map((post) => (
             <PostCard key={post.id} post={post} />
           ))}
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-6">
+          Error loading posts: {error}
         </div>
       )}
     </div>

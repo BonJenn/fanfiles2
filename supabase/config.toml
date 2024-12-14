@@ -1,0 +1,18 @@
+project_id = "fanfiles"
+
+[auth]
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000"]
+enable_signup = true
+
+[auth.external.github]
+enabled = false
+client_id = "dummy-id"
+secret = "dummy-secret"
+
+[studio]
+enabled = true
+port = 54323
+
+[storage]
+enabled = true

@@ -22,24 +22,29 @@ export function SignupContent() {
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            name: name
+          }
+        }
       });
 
       if (signUpError) throw signUpError;
       if (!authData.user) throw new Error('No user data returned');
 
-      const { error: profileError } = await supabase
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .insert([
-          {
-            id: authData.user.id,
-            name,
-            email,
-          },
-        ]);
+        .select('*')
+        .eq('id', authData.user.id)
+        .single();
 
       if (profileError) throw profileError;
+
       router.push('/feed');
     } catch (err) {
+      console.error('Signup error:', err);
       setError(err instanceof Error ? err.message : 'Failed to sign up');
     }
   };

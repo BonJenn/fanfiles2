@@ -37,50 +37,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const fetchProfile = async (userId: string) => {
     try {
       console.log('Fetching profile for user:', userId);
-      const { data: existingProfile, error: checkError } = await supabase
+      
+      // Wait a moment for the trigger to complete
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const { data: profile, error } = await supabase
         .from('profiles')
         .select('id, name, email, avatar_url, bio')
         .eq('id', userId)
-        .maybeSingle();
+        .single();
 
-      if (checkError) {
-        console.error('Error checking profile:', checkError);
+      if (error) {
+        console.error('Error fetching profile:', error);
         return null;
       }
 
-      if (!existingProfile) {
-        console.log('No profile found, creating one...');
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user?.user_metadata) {
-          console.error('No user metadata found');
-          return null;
-        }
-
-        const { data: newProfile, error: createError } = await supabase
-          .from('profiles')
-          .insert({
-            id: userId,
-            email: user.email,
-            name: user.user_metadata.name || user.email?.split('@')[0],
-            avatar_url: user.user_metadata.avatar_url,
-            bio: user.user_metadata.bio,
-            updated_at: new Date().toISOString()
-          })
-          .select()
-          .single();
-
-        if (createError) {
-          console.error('Error creating profile:', createError);
-          return null;
-        }
-
-        console.log('Created new profile:', newProfile);
-        return newProfile;
-      }
-
-      console.log('Found existing profile:', existingProfile);
-      return existingProfile;
+      console.log('Found profile:', profile);
+      return profile;
     } catch (error) {
       console.error('Error in fetchProfile:', error);
       return null;
@@ -90,7 +63,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     let mounted = true;
 
-    // Single source of truth for session management
     const handleSession = async (session: Session | null) => {
       if (!mounted) return;
 
@@ -115,7 +87,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN') {
+        // Wait for trigger to complete and fetch profile
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
       handleSession(session);
     });
 

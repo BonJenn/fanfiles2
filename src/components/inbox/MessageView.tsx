@@ -21,6 +21,12 @@ interface Message {
   };
 }
 
+interface User {
+  id: string;
+  name: string;
+  avatar_url: string;
+}
+
 interface MessageViewProps {
   threadId: string | null;
   onBack: () => void;
@@ -32,7 +38,7 @@ export function MessageView({ threadId, onBack }: MessageViewProps) {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [otherUser, setOtherUser] = useState<{ name: string; avatar_url: string } | null>(null);
+  const [otherUser, setOtherUser] = useState<User | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -62,7 +68,10 @@ export function MessageView({ threadId, onBack }: MessageViewProps) {
         .order('created_at', { ascending: true });
 
       if (!error && messages) {
-        setMessages(messages);
+        setMessages(messages.map(message => ({
+          ...message,
+          sender: message.sender[0]
+        })) as Message[]);
         scrollToBottom();
       }
       setLoading(false);
@@ -111,7 +120,7 @@ export function MessageView({ threadId, onBack }: MessageViewProps) {
         const otherUserId = thread.user1_id === user.id ? thread.user2_id : thread.user1_id;
         const { data: profile } = await supabase
           .from('profiles')
-          .select('name, avatar_url')
+          .select('id, name, avatar_url')
           .eq('id', otherUserId)
           .single();
 
@@ -125,16 +134,27 @@ export function MessageView({ threadId, onBack }: MessageViewProps) {
   }, [threadId, user]);
 
   const handleSend = async () => {
-    if (!newMessage.trim() || !threadId || !user) return;
+    if (!newMessage.trim() || !threadId || !user || !otherUser) return;
 
     try {
+      console.log('Sending message with:', {
+        thread_id: threadId,
+        sender_id: user.id,
+        recipient_id: otherUser.id,
+        content: newMessage.trim()
+      });
+
       const { error } = await supabase.from('messages').insert({
         thread_id: threadId,
         sender_id: user.id,
+        recipient_id: otherUser.id,
         content: newMessage.trim(),
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
       setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
