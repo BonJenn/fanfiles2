@@ -48,7 +48,7 @@ export function InboxContent() {
           )}
 
           {/* Message View */}
-          {(!isMobile || !showThreadList) && (
+          {(!isMobile || !showThreadList) && selectedThreadId && (
             <div className={`${isMobile ? 'w-full' : 'w-2/3'} flex flex-col`}>
               <MessageView
                 threadId={selectedThreadId}
