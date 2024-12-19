@@ -16,16 +16,20 @@ export function LoginContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    console.log('Attempting login with:', email); // Debug log
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
+      console.log('Login response:', { data, error }); // Debug log
+
       if (error) throw error;
       router.push('/feed');
     } catch (err) {
+      console.error('Login error:', err); // Debug log
       setError(err instanceof Error ? err.message : 'Failed to sign in');
     }
   };

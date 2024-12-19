@@ -1,111 +1,97 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import Image from 'next/image';
-import { ChevronLeft, Send, Image as ImageIcon, DollarSign } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Message {
   id: string;
   content: string;
-  sender_id: string;
   created_at: string;
-  is_mass_message: boolean;
-  attached_content_id: string | null;
-  content_price: number;
-  sender: {
+  sender_id: string;
+  recipient_id: string;
+  thread_id: string;
+  sender?: {
     name: string;
-    avatar_url: string;
+    avatar_url: string | null;
   };
 }
 
-interface User {
+interface Profile {
   id: string;
   name: string;
-  avatar_url: string;
+  avatar_url: string | null;
 }
 
-interface MessageViewProps {
-  threadId: string | null;
-  onBack: () => void;
-}
-
-export function MessageView({ threadId, onBack }: MessageViewProps) {
+export function MessageView({ threadId, onBack }: { threadId: string; onBack: () => void }) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [loading, setLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [otherUser, setOtherUser] = useState<User | null>(null);
+  const [otherUser, setOtherUser] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
+  // Fetch messages
   useEffect(() => {
-    if (!threadId || !user) return;
+    if (!threadId) return;
 
     const fetchMessages = async () => {
-      setLoading(true);
-      const { data: messages, error } = await supabase
+      const { data, error } = await supabase
         .from('messages')
         .select(`
-          id,
-          content,
-          sender_id,
-          created_at,
-          is_mass_message,
-          attached_content_id,
-          content_price,
+          *,
           sender:profiles!sender_id (
+            id,
             name,
             avatar_url
+          ),
+          attached_content:posts!attached_content_id (
+            id,
+            title,
+            url,
+            type
           )
         `)
         .eq('thread_id', threadId)
         .order('created_at', { ascending: true });
 
-      if (!error && messages) {
-        setMessages(messages.map(message => ({
-          ...message,
-          sender: message.sender[0]
-        })) as Message[]);
-        scrollToBottom();
+      if (error) {
+        console.error('Error fetching messages:', error);
+        return;
       }
+
+      setMessages(data || []);
       setLoading(false);
     };
 
     fetchMessages();
 
-    // Mark messages as red
-    supabase
-      .from('messages')
-      .update({ read_at: new Date().toISOString() })
-      .eq('thread_id', threadId)
-      .eq('recipient_id', user.id)
-      .is('read_at', null);
-
     // Subscribe to new messages
+    console.log('Setting up message subscription for thread:', threadId);
+
     const channel = supabase
-      .channel(`thread:${threadId}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `thread_id=eq.${threadId}`,
-      }, (payload) => {
-        setMessages(current => [...current, payload.new as Message]);
-        scrollToBottom();
-      })
+      .channel(`messages:${threadId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `thread_id=eq.${threadId}`
+        },
+        (payload) => {
+          console.log('Received new message:', payload.new);
+          setMessages(current => [...current, payload.new as Message]);
+        }
+      )
       .subscribe();
 
     return () => {
+      console.log('Cleaning up message subscription');
       supabase.removeChannel(channel);
     };
-  }, [threadId, user]);
+  }, [threadId]);
 
+  // Fetch other user's profile
   useEffect(() => {
     if (!threadId || !user) return;
 
@@ -134,131 +120,41 @@ export function MessageView({ threadId, onBack }: MessageViewProps) {
   }, [threadId, user]);
 
   const handleSend = async () => {
-    if (!newMessage.trim() || !threadId || !user || !otherUser) return;
+    if (!newMessage.trim() || !threadId || !user || !otherUser) {
+      console.log('Missing required data:', { 
+        message: newMessage, 
+        threadId, 
+        userId: user?.id, 
+        otherUserId: otherUser?.id 
+      });
+      return;
+    }
 
     try {
-      console.log('Sending message with:', {
-        thread_id: threadId,
-        sender_id: user.id,
-        recipient_id: otherUser.id,
-        content: newMessage.trim()
-      });
-
-      const { error } = await supabase.from('messages').insert({
-        thread_id: threadId,
-        sender_id: user.id,
-        recipient_id: otherUser.id,
-        content: newMessage.trim(),
-      });
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({
+          thread_id: threadId,
+          sender_id: user.id,
+          recipient_id: otherUser.id,
+          content: newMessage.trim(),
+        })
+        .select()
+        .single();
 
       if (error) {
-        console.error('Supabase error:', error);
+        console.error('Message insert error:', error);
         throw error;
       }
+
+      console.log('Message sent successfully:', data);
+      setMessages(prev => [...prev, data]);
       setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
+      alert('Failed to send message. Please try again.');
     }
   };
 
-  if (!threadId) {
-    return (
-      <div className="flex-1 flex items-center justify-center text-gray-500">
-        Select a conversation to start messaging
-      </div>
-    );
-  }
-
-  return (
-    <>
-      {/* Header */}
-      <div className="p-4 border-b flex items-center space-x-4">
-        <button onClick={onBack} className="md:hidden">
-          <ChevronLeft className="w-6 h-6" />
-        </button>
-        {otherUser && (
-          <>
-            <div className="relative w-10 h-10">
-              <Image
-                src={otherUser.avatar_url || '/default_profile_picture.jpg'}
-                alt={otherUser.name}
-                fill
-                className="rounded-full object-cover"
-              />
-            </div>
-            <span className="font-medium">{otherUser.name}</span>
-          </>
-        )}
-      </div>
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
-          >
-            <div className={`flex max-w-[70%] ${message.sender_id === user?.id ? 'flex-row-reverse' : 'flex-row'}`}>
-              <div className="relative w-8 h-8 flex-shrink-0">
-                <Image
-                  src={message.sender.avatar_url || '/default_profile_picture.jpg'}
-                  alt={message.sender.name}
-                  fill
-                  className="rounded-full object-cover"
-                />
-              </div>
-              <div
-                className={`mx-2 p-3 rounded-lg ${
-                  message.sender_id === user?.id
-                    ? 'bg-black text-white rounded-tr-none'
-                    : 'bg-gray-100 rounded-tl-none'
-                }`}
-              >
-                {message.content}
-                {message.attached_content_id && (
-                  <div className="mt-2 p-2 bg-gray-800 rounded-lg text-sm">
-                    <div className="flex items-center space-x-2">
-                      <ImageIcon className="w-4 h-4" />
-                      <span>Attached Content</span>
-                      {message.content_price > 0 && (
-                        <span className="flex items-center text-xs">
-                          <DollarSign className="w-3 h-3" />
-                          {(message.content_price / 100).toFixed(2)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-                <div className="text-xs opacity-70 mt-1">
-                  {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input */}
-      <div className="p-4 border-t">
-        <div className="flex items-center space-x-2">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Type a message..."
-            className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-black"
-          />
-          <button
-            onClick={handleSend}
-            disabled={!newMessage.trim()}
-            className="p-2 bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
-          >
-            <Send className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-    </>
-  );
+  // ... rest of your component (render method, etc.)
 }

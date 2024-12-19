@@ -2,19 +2,13 @@ export interface Thread {
     id: string;
     user1_id: string;
     user2_id: string;
+    last_message_id: string | null;
     last_message_at: string;
-    other_user: {
-      id: string;
-      name: string;
-      avatar_url: string | null;
-    };
-    last_message: {
-      content: string;
-      created_at: string;
-      is_mass_message: boolean;
-      sender_id: string;
-    };
-    unread_count: number;
+    created_at: string;
+    other_user_name: string;
+    other_user_avatar: string | null;
+    last_message: string | null;
+    last_message_sender_id: string | null;
   }
   
   export interface Message {

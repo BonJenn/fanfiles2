@@ -15,6 +15,11 @@ export const supabase = createClient(
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true
+    },
+    global: {
+      headers: {
+        'X-Client-Info': 'fanfiles'
+      }
     }
   }
 );

@@ -38,22 +38,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       console.log('Fetching profile for user:', userId);
       
-      // Wait a moment for the trigger to complete
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const { data: profile, error } = await supabase
+      // First check if profile exists
+      const { data: existingProfile, error: checkError } = await supabase
         .from('profiles')
-        .select('id, name, email, avatar_url, bio, subscription_price')
+        .select('*')
         .eq('id', userId)
         .single();
 
-      if (error) {
-        console.error('Error fetching profile:', error);
-        return null;
+      if (checkError) {
+        console.log('Profile not found, creating new profile...');
+        // If profile doesn't exist, create it
+        const { data: newProfile, error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: userId,
+            email: user?.email,
+            name: user?.email?.split('@')[0] || 'User'
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+        return newProfile;
       }
 
-      console.log('Found profile:', profile);
-      return profile;
+      return existingProfile;
     } catch (error) {
       console.error('Error in fetchProfile:', error);
       return null;

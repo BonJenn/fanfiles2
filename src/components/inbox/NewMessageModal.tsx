@@ -102,15 +102,43 @@ export function NewMessageModal({ isOpen, onClose }: NewMessageModalProps) {
       } else {
         // Send direct messages to selected users
         await Promise.all(
-          selectedUsers.map(recipient =>
-            supabase.from('messages').insert({
-              sender_id: user.id,
-              recipient_id: recipient.id,
-              content: message,
-              attached_content_id: attachedContent?.id || null,
-              content_price: contentPrice
-            })
-          )
+          selectedUsers.map(async (recipient) => {
+            // First, create or get thread
+            const { data: thread, error: threadError } = await supabase
+              .from('message_threads')
+              .insert({
+                user1_id: user.id,
+                user2_id: recipient.id,
+              })
+              .select()
+              .single();
+
+            if (threadError && !threadError.message.includes('duplicate key')) {
+              throw threadError;
+            }
+
+            // Get existing thread if there was a duplicate error
+            const existingThread = threadError ? 
+              await supabase
+                .from('message_threads')
+                .select()
+                .or(`and(user1_id.eq.${user.id},user2_id.eq.${recipient.id}),and(user1_id.eq.${recipient.id},user2_id.eq.${user.id})`)
+                .single()
+                .then(res => res.data)
+              : thread;
+
+            // Now send the message
+            return supabase
+              .from('messages')
+              .insert({
+                thread_id: existingThread!.id,
+                sender_id: user.id,
+                recipient_id: recipient.id,
+                content: message,
+                attached_content_id: attachedContent?.id || null,
+                content_price: contentPrice
+              });
+          })
         );
       }
 
@@ -121,7 +149,7 @@ export function NewMessageModal({ isOpen, onClose }: NewMessageModalProps) {
       setContentPrice(0);
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Failed to send message');
+      alert('Failed to send message. Please try again.');
     } finally {
       setLoading(false);
     }
