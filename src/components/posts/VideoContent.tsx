@@ -1,96 +1,26 @@
-import { useState, useEffect, useRef } from 'react';
-import { PlayIcon } from 'lucide-react';
+'use client';
 
-const VideoContent = ({ url, onClick }: { url: string; onClick: () => void }) => {
-  const [thumbnail, setThumbnail] = useState<string>('');
-  const [error, setError] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
+interface VideoContentProps {
+  url: string;
+  onClick?: () => void;
+}
 
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) {
-      console.log('Video element not found');
-      return;
-    }
-
-    const handleLoadedData = () => {
-      console.log('Video loaded data');
-      try {
-        video.currentTime = 1; // Ensure the video is at the 1-second mark
-        video.addEventListener('seeked', generateThumbnail, { once: true });
-      } catch (err) {
-        console.error('Error setting video time:', err);
-        setError(true);
-      }
-    };
-
-    const generateThumbnail = () => {
-      console.log('Generating thumbnail');
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) throw new Error('Could not get canvas context');
-
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-        setThumbnail(dataUrl);
-        console.log('Thumbnail generated');
-      } catch (err) {
-        console.error('Error generating thumbnail:', err);
-        setError(true);
-      }
-    };
-
-    video.addEventListener('loadeddata', handleLoadedData);
-    video.addEventListener('error', (e) => {
-      console.error('Error loading video:', e);
-      setError(true);
-    });
-
-    return () => {
-      video.removeEventListener('loadeddata', handleLoadedData);
-    };
-  }, [url]);
-
+export default function VideoContent({ url, onClick }: VideoContentProps) {
   return (
     <div 
-      className="relative aspect-video w-full cursor-pointer group"
       onClick={onClick}
+      className="relative w-full h-full cursor-pointer group"
     >
-      <video 
-        ref={videoRef}
+      <video
         src={url}
-        className="w-full h-full object-cover rounded-lg"
-        crossOrigin="anonymous"
+        className="w-full h-full object-cover"
         preload="metadata"
-        playsInline
-        autoPlay
-        muted
-        controls
       />
-      
-      {thumbnail ? (
-        <>
-          <img
-            src={thumbnail}
-            alt="Video thumbnail"
-            className="w-full h-full object-cover rounded-lg"
-          />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-16 h-16 bg-black/50 rounded-full flex items-center justify-center group-hover:bg-black/75 transition-colors">
-              <PlayIcon className="w-8 h-8 text-white" />
-            </div>
-          </div>
-        </>
-      ) : (
-        <div className="w-full h-full bg-gray-100 animate-pulse rounded-lg flex items-center justify-center">
-          <PlayIcon className="w-12 h-12 text-gray-400" />
+      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+        <div className="w-16 h-16 rounded-full bg-white/30 backdrop-blur-sm flex items-center justify-center">
+          <div className="w-0 h-0 border-l-[20px] border-l-white border-t-[12px] border-t-transparent border-b-[12px] border-b-transparent ml-1" />
         </div>
-      )}
+      </div>
     </div>
   );
-};
-
-export default VideoContent;
+}

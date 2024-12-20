@@ -2,7 +2,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { LockIcon, HeartIcon, MessageSquare } from 'lucide-react';
 import { Post } from '@/types/post';
-import { VideoContent } from '../posts/VideoContent';
+import VideoContent from '../posts/VideoContent';
 import { VideoModal } from '../posts/VideoModal';
 
 interface PostCardProps {
