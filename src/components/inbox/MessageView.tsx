@@ -30,6 +30,17 @@ interface MessageViewProps {
   onBack: () => void;
 }
 
+interface MessageData {
+  thread_id: string;
+  sender_id: string;
+  recipient_id: string;
+  content: string;
+  is_mass_message: boolean;
+  attached_content_id: null;
+  content_price: number;
+  file?: string;
+}
+
 export function MessageView({ threadId, onBack }: MessageViewProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -178,8 +189,8 @@ export function MessageView({ threadId, onBack }: MessageViewProps) {
         }
       }
 
-      // Updated messageData to match schema exactly
-      const messageData = {
+      // Updated messageData with proper typing
+      const messageData: MessageData = {
         thread_id: threadId,
         sender_id: user.id,
         recipient_id: otherUser.id,
@@ -189,9 +200,9 @@ export function MessageView({ threadId, onBack }: MessageViewProps) {
         content_price: 0
       };
 
-      // Only add file if it exists
+      // Now TypeScript knows file is a valid property
       if (imageUrl) {
-        messageData['file'] = imageUrl;
+        messageData.file = imageUrl;
       }
 
       console.log('Message data being sent:', JSON.stringify(messageData, null, 2));
