@@ -5,6 +5,7 @@ import { Modal } from '@/components/ui/Modal';
 import Image from 'next/image';
 import { Search, Users, ImageIcon, X } from 'lucide-react';
 import { Post } from '@/types/post';
+import { Message } from '@/types/inbox';
 
 interface NewMessageModalProps {
   isOpen: boolean;
@@ -23,8 +24,8 @@ export function NewMessageModal({ isOpen, onClose }: NewMessageModalProps) {
   const [contentPrice, setContentPrice] = useState<number>(0);
   const [showContentSelector, setShowContentSelector] = useState(false);
   const [userContent, setUserContent] = useState<Post[]>([]);
+  const [file, setFile] = useState<File | null>(null);
 
-  // Search users
   useEffect(() => {
     if (!searchQuery) {
       setSearchResults([]);
@@ -44,7 +45,6 @@ export function NewMessageModal({ isOpen, onClose }: NewMessageModalProps) {
     searchUsers();
   }, [searchQuery]);
 
-  // Fetch user's content for attachment
   useEffect(() => {
     if (!user || !showContentSelector) return;
 
@@ -61,13 +61,38 @@ export function NewMessageModal({ isOpen, onClose }: NewMessageModalProps) {
     fetchContent();
   }, [user, showContentSelector]);
 
+  const uploadFile = async (file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}-${Date.now()}.${fileExt}`;
+      const filePath = `message-attachments/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('uploads')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        return null;
+      }
+
+      const { data } = supabase.storage
+        .from('uploads')
+        .getPublicUrl(filePath);
+
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      return null;
+    }
+  };
+
   const handleSend = async () => {
     if (!user || !message.trim()) return;
     setLoading(true);
 
     try {
       if (isMassMessage) {
-        // Get all subscribers
         const { data: subscribers } = await supabase
           .from('subscriptions')
           .select('subscriber_id')
@@ -79,7 +104,6 @@ export function NewMessageModal({ isOpen, onClose }: NewMessageModalProps) {
           return;
         }
 
-        // Create mass message
         const { data: massMessage } = await supabase
           .from('messages')
           .insert({
@@ -92,7 +116,6 @@ export function NewMessageModal({ isOpen, onClose }: NewMessageModalProps) {
           .select()
           .single();
 
-        // Create individual message records for each subscriber
         await supabase.from('mass_message_recipients').insert(
           subscribers.map(sub => ({
             message_id: massMessage.id,
@@ -100,15 +123,14 @@ export function NewMessageModal({ isOpen, onClose }: NewMessageModalProps) {
           }))
         );
       } else {
-        // Send direct messages to selected users
         await Promise.all(
           selectedUsers.map(async (recipient) => {
-            // First, create or get thread
             const { data: thread, error: threadError } = await supabase
               .from('message_threads')
               .insert({
                 user1_id: user.id,
                 user2_id: recipient.id,
+                last_message_at: new Date().toISOString()
               })
               .select()
               .single();
@@ -117,7 +139,6 @@ export function NewMessageModal({ isOpen, onClose }: NewMessageModalProps) {
               throw threadError;
             }
 
-            // Get existing thread if there was a duplicate error
             const existingThread = threadError ? 
               await supabase
                 .from('message_threads')
@@ -127,17 +148,49 @@ export function NewMessageModal({ isOpen, onClose }: NewMessageModalProps) {
                 .then(res => res.data)
               : thread;
 
-            // Now send the message
-            return supabase
+            const imageUrl = file ? await uploadFile(file) : null;
+
+            const { data, error } = await supabase
               .from('messages')
               .insert({
                 thread_id: existingThread!.id,
                 sender_id: user.id,
                 recipient_id: recipient.id,
                 content: message,
+                is_mass_message: false,
                 attached_content_id: attachedContent?.id || null,
-                content_price: contentPrice
-              });
+                content_price: contentPrice,
+                file: imageUrl,
+                created_at: new Date().toISOString()
+              })
+              .select(`
+                *,
+                sender:profiles!sender_id (
+                  id,
+                  name,
+                  avatar_url
+                ),
+                attached_content:posts!attached_content_id (
+                  id,
+                  title,
+                  url,
+                  type
+                )
+              `)
+              .single();
+
+            if (error) {
+              console.error('Message insert error:', error);
+              throw error;
+            }
+
+            await supabase
+              .from('message_threads')
+              .update({ 
+                last_message_at: new Date().toISOString(),
+                last_message_id: data.id
+              })
+              .eq('id', existingThread!.id);
           })
         );
       }
@@ -147,8 +200,9 @@ export function NewMessageModal({ isOpen, onClose }: NewMessageModalProps) {
       setSelectedUsers([]);
       setAttachedContent(null);
       setContentPrice(0);
+      setFile(null);
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('Full error:', error);
       alert('Failed to send message. Please try again.');
     } finally {
       setLoading(false);
@@ -162,7 +216,6 @@ export function NewMessageModal({ isOpen, onClose }: NewMessageModalProps) {
       title={isMassMessage ? "Send Mass Message" : "New Message"}
     >
       <div className="space-y-4">
-        {/* Toggle between direct and mass message */}
         <div className="flex items-center space-x-4 mb-4">
           <button
             onClick={() => setIsMassMessage(false)}
@@ -179,7 +232,6 @@ export function NewMessageModal({ isOpen, onClose }: NewMessageModalProps) {
           </button>
         </div>
 
-        {/* Recipient selector for direct messages */}
         {!isMassMessage && (
           <div className="space-y-2">
             <div className="flex flex-wrap gap-2 mb-2">
@@ -221,6 +273,7 @@ export function NewMessageModal({ isOpen, onClose }: NewMessageModalProps) {
                         src={result.avatar_url || '/default_profile_picture.jpg'}
                         alt={result.name}
                         fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         className="rounded-full object-cover"
                       />
                     </div>
@@ -232,7 +285,6 @@ export function NewMessageModal({ isOpen, onClose }: NewMessageModalProps) {
           </div>
         )}
 
-        {/* Message input */}
         <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
@@ -240,7 +292,18 @@ export function NewMessageModal({ isOpen, onClose }: NewMessageModalProps) {
           className="w-full p-3 border rounded-md h-32"
         />
 
-        {/* Content attachment */}
+        <div className="flex items-center">
+          <input
+            type="file"
+            onChange={(e) => {
+              if (e.target.files) {
+                setFile(e.target.files[0]);
+              }
+            }}
+            className="border rounded-md p-2"
+          />
+        </div>
+
         <div className="flex items-center justify-between">
           <button
             onClick={() => setShowContentSelector(true)}
@@ -266,7 +329,6 @@ export function NewMessageModal({ isOpen, onClose }: NewMessageModalProps) {
             </div>
           )}
         </div>
-
         <button
           onClick={handleSend}
           disabled={loading || !message.trim() || (!isMassMessage && selectedUsers.length === 0)}
@@ -276,7 +338,6 @@ export function NewMessageModal({ isOpen, onClose }: NewMessageModalProps) {
         </button>
       </div>
 
-      {/* Content selector modal */}
       <Modal
         isOpen={showContentSelector}
         onClose={() => setShowContentSelector(false)}

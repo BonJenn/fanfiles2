@@ -1,9 +1,8 @@
-'use client';
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import Image from 'next/image';
+import { Modal } from '@/components/ui/Modal';
 
 interface Message {
   id: string;
@@ -13,9 +12,11 @@ interface Message {
   recipient_id: string;
   thread_id: string;
   sender?: {
+    id: string;
     name: string;
     avatar_url: string | null;
   };
+  file?: string | null;
 }
 
 interface Profile {
@@ -24,14 +25,20 @@ interface Profile {
   avatar_url: string | null;
 }
 
-export function MessageView({ threadId, onBack }: { threadId: string; onBack: () => void }) {
+interface MessageViewProps {
+  threadId: string;
+  onBack: () => void;
+}
+
+export function MessageView({ threadId, onBack }: MessageViewProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [otherUser, setOtherUser] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [file, setFile] = useState<File | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  // Fetch messages
   useEffect(() => {
     if (!threadId) return;
 
@@ -66,9 +73,7 @@ export function MessageView({ threadId, onBack }: { threadId: string; onBack: ()
 
     fetchMessages();
 
-    // Subscribe to new messages
-    console.log('Setting up message subscription for thread:', threadId);
-
+    // Set up realtime channel
     const channel = supabase
       .channel(`messages:${threadId}`)
       .on(
@@ -80,19 +85,16 @@ export function MessageView({ threadId, onBack }: { threadId: string; onBack: ()
           filter: `thread_id=eq.${threadId}`
         },
         (payload) => {
-          console.log('Received new message:', payload.new);
           setMessages(current => [...current, payload.new as Message]);
         }
       )
       .subscribe();
 
     return () => {
-      console.log('Cleaning up message subscription');
       supabase.removeChannel(channel);
     };
   }, [threadId]);
 
-  // Fetch other user's profile
   useEffect(() => {
     if (!threadId || !user) return;
 
@@ -120,39 +122,113 @@ export function MessageView({ threadId, onBack }: { threadId: string; onBack: ()
     fetchOtherUser();
   }, [threadId, user]);
 
+  const uploadFile = async (file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}-${Date.now()}.${fileExt}`;
+      const filePath = `messages/${fileName}`;
+
+      console.log('Attempting to upload file:', {
+        fileName,
+        filePath,
+        fileType: file.type,
+        fileSize: file.size
+      });
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('posts')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('Upload error details:', uploadError);
+        return null;
+      }
+
+      console.log('Upload successful:', uploadData);
+
+      const { data: urlData } = supabase.storage
+        .from('posts')
+        .getPublicUrl(filePath);
+
+      console.log('Public URL:', urlData);
+      
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error('Full upload error:', error);
+      return null;
+    }
+  };
+
   const handleSend = async () => {
     if (!newMessage.trim() || !threadId || !user || !otherUser) {
-      console.log('Missing required data:', { 
-        message: newMessage, 
-        threadId, 
-        userId: user?.id, 
-        otherUserId: otherUser?.id 
-      });
       return;
     }
 
     try {
-      const { data, error } = await supabase
+      let imageUrl = null;
+      if (file) {
+        console.log('Starting file upload...');
+        imageUrl = await uploadFile(file);
+        console.log('File upload result:', imageUrl);
+        if (!imageUrl) {
+          throw new Error('Failed to upload file');
+        }
+      }
+
+      // Updated messageData to match schema exactly
+      const messageData = {
+        thread_id: threadId,
+        sender_id: user.id,
+        recipient_id: otherUser.id,
+        content: newMessage.trim(),
+        is_mass_message: false,
+        attached_content_id: null,
+        content_price: 0
+      };
+
+      // Only add file if it exists
+      if (imageUrl) {
+        messageData['file'] = imageUrl;
+      }
+
+      console.log('Message data being sent:', JSON.stringify(messageData, null, 2));
+
+      const { data: insertedData, error: insertError } = await supabase
         .from('messages')
-        .insert({
-          thread_id: threadId,
-          sender_id: user.id,
-          recipient_id: otherUser.id,
-          content: newMessage.trim(),
-        })
+        .insert(messageData)
         .select()
         .single();
 
-      if (error) {
-        console.error('Message insert error:', error);
-        throw error;
+      if (insertError) {
+        console.error('Insert error full details:', insertError);
+        throw insertError;
       }
 
-      console.log('Message sent successfully:', data);
-      setMessages(prev => [...prev, data]);
+      console.log('Message sent successfully:', insertedData);
+
+      setMessages(prev => [...prev, insertedData]);
       setNewMessage('');
-    } catch (error) {
-      console.error('Error sending message:', error);
+      setFile(null);
+
+      // Update thread's last message timestamp
+      await supabase
+        .from('message_threads')
+        .update({ 
+          last_message_at: new Date().toISOString(),
+          last_message_id: insertedData.id 
+        })
+        .eq('id', threadId);
+
+    } catch (error: any) {
+      console.error('Full error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
       alert('Failed to send message. Please try again.');
     }
   };
@@ -167,6 +243,7 @@ export function MessageView({ threadId, onBack }: { threadId: string; onBack: ()
                 src={otherUser.avatar_url || '/default_profile_picture.jpg'}
                 alt={otherUser.name}
                 fill
+                sizes="(max-width: 768px) 40px, 40px"
                 className="rounded-full object-cover"
               />
             </div>
@@ -189,6 +266,22 @@ export function MessageView({ threadId, onBack }: { threadId: string; onBack: ()
               }`}
             >
               <p>{message.content}</p>
+              {message.file && (
+                <div className="mt-2">
+                  <div 
+                    className="relative w-48 h-48 cursor-pointer"
+                    onClick={() => setSelectedImage(message.file!)}
+                  >
+                    <Image
+                      src={message.file}
+                      alt="Attachment"
+                      fill
+                      sizes="(max-width: 768px) 192px, 192px"
+                      className="object-cover rounded"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -204,6 +297,15 @@ export function MessageView({ threadId, onBack }: { threadId: string; onBack: ()
             placeholder="Type a message..."
             className="flex-1 border rounded-lg px-4 py-2"
           />
+          <input
+            type="file"
+            onChange={(e) => {
+              if (e.target.files) {
+                setFile(e.target.files[0]);
+              }
+            }}
+            className="border rounded-md p-2"
+          />
           <button
             onClick={handleSend}
             className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800"
@@ -212,6 +314,25 @@ export function MessageView({ threadId, onBack }: { threadId: string; onBack: ()
           </button>
         </div>
       </div>
+
+      <Modal
+        isOpen={!!selectedImage}
+        onClose={() => setSelectedImage(null)}
+        title="Image Preview"
+      >
+        <div className="relative w-full" style={{ height: '80vh' }}>
+          {selectedImage && (
+            <Image
+              src={selectedImage}
+              alt="Full size attachment"
+              fill
+              sizes="(max-width: 768px) 100vw, 80vw"
+              className="object-contain"
+              priority
+            />
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }
