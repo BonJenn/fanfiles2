@@ -55,7 +55,7 @@ export function DashboardContent() {
           </div>
         </div>
 
-        {/* Main Content Grid */}
+        {/* Main Content Gridd */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Column */}
           <div className="space-y-8">
