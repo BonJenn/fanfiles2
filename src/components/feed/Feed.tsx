@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Modal } from '@/components/ui/Modal';
 import { CreatePostForm } from '@/components/posts/CreatePostForm';
+import { Sparkles, TrendingUp, UserCircle } from 'lucide-react';
 
 export type SortOption = 'newest' | 'oldest' | 'price_high' | 'price_low';
 export type ContentType = 'all' | 'image' | 'video';
@@ -21,13 +22,13 @@ interface FeedProps {
 export const Feed = ({ subscribedContent, creatorId, showCreatePost = true }: FeedProps) => {
   const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [contentType, setContentType] = useState<ContentType>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'following' | 'forYou'>('forYou');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'following' | 'forYou'>('following');
-  const [error, setError] = useState<string | null>(null);
 
   const fetchPosts = useCallback(async () => {
     try {
@@ -143,53 +144,56 @@ export const Feed = ({ subscribedContent, creatorId, showCreatePost = true }: Fe
   };
 
   return (
-    <div className="space-y-6">
-   
-      {renderCreatePost()}
-      <FilterControls
-        sortBy={sortBy}
-        contentType={contentType}
-        onSortChange={setSortBy}
-        onTypeChange={setContentType}
-        onSearch={setSearchQuery}
-      />
+    <div className="relative min-h-screen">
+      <div className="fixed inset-0 bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 -z-10"></div>
+      <div className="fixed top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_120%,rgba(120,119,198,0.1),rgba(255,255,255,0))] -z-10"></div>
 
-      {!creatorId && (
-        <div className="flex justify-center space-x-4">
-          <button
-            className={`px-4 py-2 ${activeTab === 'following' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
-            onClick={() => setActiveTab('following')}
-          >
-            Following
-          </button>
-          <button
-            className={`px-4 py-2 ${activeTab === 'forYou' ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
-            onClick={() => setActiveTab('forYou')}
-          >
-            For You
-          </button>
-        </div>
-      )}
-      
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3].map((n) => (
-            <div key={n} className="h-64 bg-gray-100 animate-pulse rounded-lg" />
-          ))}
-        </div>
-      ) : (
-        <div className="max-w-screen-lg mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 justify-items-center">
-          {posts.map((post) => (
-            <PostCard key={post.id} post={post} />
-          ))}
-        </div>
-      )}
+      <div className="max-w-[800px] mx-auto px-6 py-8">
+        {renderCreatePost()}
 
-      {error && (
-        <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-6">
-          Error loading posts: {error}
+        <div className="mb-8 backdrop-blur-sm bg-white/80 rounded-2xl p-6 border border-white/20 shadow-lg w-full">
+          <FilterControls
+            sortBy={sortBy}
+            contentType={contentType}
+            onSortChange={setSortBy}
+            onTypeChange={setContentType}
+            onSearch={setSearchQuery}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+          />
         </div>
-      )}
+
+        {loading ? (
+          <div className="space-y-6">
+            {[1, 2, 3].map((n) => (
+              <div 
+                key={n} 
+                className="h-[600px] rounded-2xl bg-gradient-to-br from-white/40 to-white/60 backdrop-blur-sm animate-pulse"
+              />
+            ))}
+          </div>
+        ) : error ? (
+          <div className="backdrop-blur-sm bg-red-50/80 text-red-600 p-6 rounded-2xl border border-red-100">
+            {error}
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {posts.map((post) => (
+              <PostCard key={post.id} post={post} />
+            ))}
+          </div>
+        )}
+
+        {!loading && !error && posts.length === 0 && (
+          <div className="text-center py-12">
+            <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-purple-50 flex items-center justify-center">
+              <TrendingUp className="w-12 h-12 text-purple-500" />
+            </div>
+            <h3 className="text-xl font-medium text-gray-900 mb-2">No posts yet</h3>
+            <p className="text-gray-500">Be the first one to share something amazing!</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

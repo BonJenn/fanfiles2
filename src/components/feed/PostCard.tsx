@@ -1,233 +1,121 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { useState } from 'react';
 import Image from 'next/image';
-import { LockIcon, PlayIcon } from 'lucide-react';
-import { loadStripe } from '@stripe/stripe-js';
-import { VideoModal } from '@/components/posts/VideoModal';
+import { LockIcon, HeartIcon, MessageSquare } from 'lucide-react';
+import { Post } from '@/types/post';
+import { VideoContent } from '../posts/VideoContent';
+import { VideoModal } from '../posts/VideoModal';
 
 interface PostCardProps {
-  post: {
-    id: string;
-    url: string;
-    type: 'image' | 'video';
-    description: string;
-    price?: number;
-    is_public: boolean;
-    creator_id: string;
-    creator: {
-      id: string;
-      name: string;
-      avatar_url: string;
-    };
-  };
+  post: Post;
 }
 
-const VideoContent = ({ url, onClick }: { url: string; onClick: () => void }) => {
-  const [thumbnail, setThumbnail] = useState<string>('');
-
-  useEffect(() => {
-    // Create thumbnail from video
-    const video = document.createElement('video');
-    video.src = url;
-    video.addEventListener('loadeddata', () => {
-      video.currentTime = 1; // Skip to 1 second
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
-      setThumbnail(canvas.toDataURL());
-    });
-  }, [url]);
-
-  return (
-    <div 
-      className="relative aspect-video w-full cursor-pointer group"
-      onClick={onClick}
-    >
-      {thumbnail ? (
-        <>
-          <img
-            src={thumbnail}
-            alt="Video thumbnail"
-            className="w-full h-full object-cover rounded-lg"
-          />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-16 h-16 bg-black/50 rounded-full flex items-center justify-center group-hover:bg-black/75 transition-colors">
-              <PlayIcon className="w-8 h-8 text-white" />
-            </div>
-          </div>
-        </>
-      ) : (
-        <div className="w-full h-full bg-gray-100 animate-pulse rounded-lg" />
-      )}
-    </div>
-  );
-};
-
 export const PostCard = ({ post }: PostCardProps) => {
-  const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const isBlurred = !post.is_public;
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isBlurred, setIsBlurred] = useState(!post.is_public);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
-
-  const handleCreatorClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    router.push(`/creator/${post.creator_id}`);
-  };
-
-  const handlePurchase = async () => {
-    const stripe = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
-    if (!stripe) {
-      console.error('Failed to load Stripe');
-      return;
-    }
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/login');
-        return;
-      }
-
-      // Create Stripe checkout session
-      const response = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          postId: post.id,
-          creatorId: post.creator_id,
-          price: post.price,
-          returnUrl: window.location.href,
-        }),
-      });
-
-      const { url, error: checkoutError } = await response.json();
-      
-      if (checkoutError) throw new Error(checkoutError);
-      
-      // Redirect to Stripe checkout
-      window.location.href = url;
-    } catch (err: any) {
-      setError(err.message || 'Failed to process purchase. Please try again.');
-      console.error('Purchase error:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const [isLiked, setIsLiked] = useState(false);
 
   const handleMediaClick = () => {
-    if (!post.is_public) {
-      handlePurchase();
-      return;
-    }
-    
     if (post.type === 'video') {
       setIsVideoModalOpen(true);
     }
   };
 
-  const recordView = useCallback(async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      await fetch('/api/views', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          postId: post.id,
-          viewerId: user.id,
-        }),
-      });
-    } catch (error) {
-      console.error('Error recording view:', error);
-    }
-  }, [post.id]);
-
-  useEffect(() => {
-    recordView();
-  }, [recordView]);
+  const handlePurchase = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Purchase logic here
+  };
 
   return (
-    <div className="container transition-transform hover:shadow-lg hover:-translate-y-1">
-      {/* Creator Info */}
-      <div className="p-3 flex items-center space-x-2 border-b">
-        <div 
-          onClick={handleCreatorClick}
-          className="flex items-center space-x-2 cursor-pointer hover:opacity-80"
-        >
-          <div className="relative w-8 h-8 rounded-full overflow-hidden">
+    <div className="group relative w-full overflow-hidden">
+      <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-pink-300 via-purple-300 to-indigo-400 rounded-full blur-3xl opacity-30 group-hover:opacity-50 transition-opacity duration-500"></div>
+      
+      <div className="relative backdrop-blur-sm bg-white/80 border border-white/20 rounded-2xl overflow-hidden transform transition-all duration-300 hover:shadow-xl">
+        {/* Creator Info */}
+        <div className="flex items-center p-4 gap-3 border-b border-gray-100">
+          <div className="relative w-10 h-10">
             <Image
               src={post.creator.avatar_url || '/default_profile_picture.jpg'}
               alt={post.creator.name}
               fill
-              className="object-cover"
+              className="rounded-full object-cover ring-2 ring-purple-500/20"
             />
           </div>
-          <span className="font-medium text-sm">{post.creator.name}</span>
+          <div className="flex-1">
+            <h3 className="font-medium text-gray-900">{post.creator.name}</h3>
+            <p className="text-xs text-gray-500">
+              {new Date(post.created_at).toLocaleDateString()}
+            </p>
+          </div>
         </div>
-      </div>
 
-      {/* Media Container */}
-      <div 
-        className="relative aspect-square cursor-pointer group"
-        onClick={handleMediaClick}
-      >
-        {post.type === 'image' ? (
-          <Image
-            src={post.url}
-            alt={post.description}
-            fill
-            className={`object-cover transition-all duration-200 ${
-              isBlurred ? 'blur-xl scale-110' : 'blur-0 scale-100'
-            }`}
-          />
-        ) : (
-          <>
-            <VideoContent url={post.url} onClick={handleMediaClick} />
-            <VideoModal
-              isOpen={isVideoModalOpen}
-              onClose={() => setIsVideoModalOpen(false)}
-              videoUrl={post.url}
-            />
-          </>
+        {/* Description */}
+        {post.description && (
+          <div className="px-4 py-3">
+            <p className="text-gray-700">{post.description}</p>
+          </div>
         )}
 
-        {/* Premium Content Overlay */}
-        {!post.is_public && (
-          <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
-            <LockIcon className="w-8 h-8 mb-2" />
-            <p className="font-medium">${((post.price ?? 0) / 100).toFixed(2)}</p>
-            <button
-              onClick={handlePurchase}
-              disabled={isLoading}
-              className="mt-2 px-4 py-2 bg-white text-black rounded-full text-sm font-medium hover:bg-gray-100 disabled:opacity-50"
+        {/* Media Container */}
+        <div className="relative aspect-video">
+          {post.type === 'image' ? (
+            <div className="relative w-full h-full group/image">
+              <Image
+                src={post.url}
+                alt={post.description || 'Post image'}
+                fill
+                className={`object-cover transition-all duration-500 ${
+                  isBlurred ? 'blur-xl scale-110' : 'blur-0 scale-100'
+                }`}
+              />
+              {/* Holographic overlay */}
+              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent opacity-0 group-hover/image:opacity-100 transition-opacity duration-500"></div>
+            </div>
+          ) : (
+            <>
+              <VideoContent url={post.url} onClick={handleMediaClick} />
+              <VideoModal
+                isOpen={isVideoModalOpen}
+                onClose={() => setIsVideoModalOpen(false)}
+                videoUrl={post.url}
+              />
+            </>
+          )}
+
+          {/* Premium Content Overlay */}
+          {!post.is_public && (
+            <div className="absolute inset-0 backdrop-blur-md bg-black/30 flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all duration-300">
+              <div className="transform transition-transform group-hover:scale-110 duration-300">
+                <LockIcon className="w-8 h-8 mb-2" />
+                <p className="font-medium text-xl">${((post.price ?? 0) / 100).toFixed(2)}</p>
+                <button
+                  onClick={handlePurchase}
+                  className="mt-4 px-6 py-2 bg-white text-black rounded-full font-medium hover:bg-opacity-90 transition-all duration-300 hover:shadow-[0_0_20px_rgba(255,255,255,0.3)]"
+                >
+                  Purchase
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Interaction Bar */}
+        <div className="p-4 flex items-center justify-between border-t border-gray-100">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setIsLiked(!isLiked)}
+              className="flex items-center gap-2 text-gray-600 hover:text-pink-500 transition-colors bg-transparent p-0"
             >
-              {isLoading ? 'Processing...' : 'Purchase'}
+              <HeartIcon 
+                className={`w-5 h-5 ${isLiked ? 'fill-pink-500 text-pink-500' : ''}`} 
+              />
+              <span className="text-sm">{post.likes || 0}</span>
+            </button>
+            <button className="flex items-center gap-2 text-gray-600 hover:text-purple-500 transition-colors bg-transparent p-0">
+              <MessageSquare className="w-5 h-5" />
+              <span className="text-sm">{post.comments || 0}</span>
             </button>
           </div>
-        )}
-      </div>
-
-      {/* Description */}
-      <div className="p-3">
-        <p className="text-sm text-gray-600 line-clamp-2">{post.description}</p>
-        
-        {error && (
-          <div className="mt-2 text-sm text-red-500">
-            {error}
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
