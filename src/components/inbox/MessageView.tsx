@@ -133,6 +133,41 @@ export function MessageView({ threadId, onBack }: MessageViewProps) {
     fetchOtherUser();
   }, [threadId, user]);
 
+  useEffect(() => {
+    if (!threadId || !user) return;
+
+    const markMessagesAsRead = async () => {
+      console.log('Starting markMessagesAsRead...');
+      console.log('User ID:', user.id);
+      console.log('Thread ID:', threadId);
+      
+      const { data, error } = await supabase
+        .from('messages')
+        .update({ read_at: new Date().toISOString() })
+        .eq('thread_id', threadId)
+        .eq('recipient_id', user.id)
+        .is('read_at', null)
+        .select();  // Add this to see what was updated
+
+      if (error) {
+        console.error('Error marking messages as read:', error);
+        console.error('Full error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+      } else {
+        console.log('Messages marked as read:', data);
+        // Manually trigger a refresh of the unread count
+        const event = new CustomEvent('messages-read');
+        window.dispatchEvent(event);
+      }
+    };
+
+    markMessagesAsRead();
+  }, [threadId, user]);
+
   const uploadFile = async (file: File): Promise<string | null> => {
     try {
       const fileExt = file.name.split('.').pop();

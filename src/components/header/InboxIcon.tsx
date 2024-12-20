@@ -9,36 +9,72 @@ export const InboxIcon = () => {
   const { user } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
 
+  const fetchUnreadCount = async () => {
+    if (!user) return;
+    
+    console.log('Fetching unread count...');
+    const { count, error } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('recipient_id', user.id)
+      .is('read_at', null)
+      .neq('sender_id', user.id);
+
+    if (error) {
+      console.error('Error fetching unread count:', error);
+    } else {
+      console.log('Unread count:', count);
+      setUnreadCount(count || 0);
+    }
+  };
+
   useEffect(() => {
     if (!user) return;
 
-    const fetchUnreadCount = async () => {
-      const { count } = await supabase
-        .from('messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('recipient_id', user.id)
-        .is('read_at', null);
-
-      setUnreadCount(count || 0);
-    };
-
     fetchUnreadCount();
 
-    // Subscribe to new messages
+    // Subscribe to new messages only
     const channel = supabase
-      .channel('messages')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `recipient_id=eq.${user.id}`,
-      }, () => {
-        fetchUnreadCount();
-      })
+      .channel(`messages_${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `recipient_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('New message received:', payload);
+          fetchUnreadCount();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `recipient_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('Message updated:', payload);
+          fetchUnreadCount();
+        }
+      )
       .subscribe();
+
+    // Listen for manual refresh events
+    const handleMessagesRead = () => {
+      console.log('Messages read event received');
+      fetchUnreadCount();
+    };
+
+    window.addEventListener('messages-read', handleMessagesRead);
 
     return () => {
       supabase.removeChannel(channel);
+      window.removeEventListener('messages-read', handleMessagesRead);
     };
   }, [user]);
 
