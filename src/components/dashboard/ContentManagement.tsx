@@ -103,7 +103,7 @@ export function ContentManagement({ userId }: ContentManagementProps) {
               <h3 className="font-medium">{post.title}</h3>
               <p className="text-sm text-gray-500">{post.description}</p>
               <p className="text-sm text-gray-500">
-                ${(post.price / 100).toFixed(2)} • {new Date(post.created_at).toLocaleDateString()}
+                ${((post.price ?? 0) / 100).toFixed(2)} • {new Date(post.created_at).toLocaleDateString()}
               </p>
             </div>
             <div className="flex gap-2">

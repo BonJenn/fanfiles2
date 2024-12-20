@@ -356,7 +356,7 @@ export function NewMessageModal({ isOpen, onClose }: NewMessageModalProps) {
               <div className="relative aspect-video w-full mb-2">
                 <Image
                   src={content.url}
-                  alt={content.title}
+                  alt={content.title || 'Content preview'}
                   fill
                   className="object-cover rounded"
                 />
