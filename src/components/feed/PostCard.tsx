@@ -10,6 +10,8 @@ interface PostCardProps {
 }
 
 export const PostCard = ({ post }: PostCardProps) => {
+  console.log('Rendering post with URL:', post.url);
+  
   const [isBlurred, setIsBlurred] = useState(!post.is_public);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [isLiked, setIsLiked] = useState(false);

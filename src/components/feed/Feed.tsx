@@ -33,62 +33,70 @@ export const Feed = ({ subscribedContent, creatorId, showCreatePost = true }: Fe
   const fetchPosts = useCallback(async () => {
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
       let query = supabase
         .from('posts')
         .select(`
           *,
-          creator:profiles!creator_id (
+          creator:creator_id (
             id,
             name,
             avatar_url
           )
-        `);
+        `)
+        .order('created_at', { ascending: false });
+
+      // Apply filters
+      if (contentType !== 'all') {
+        query = query.eq('type', contentType);
+      }
 
       if (creatorId) {
         query = query.eq('creator_id', creatorId);
-      } else if (subscribedContent) {
+      }
+
+      if (subscribedContent) {
         const { data: subscriptions } = await supabase
           .from('subscriptions')
           .select('creator_id')
-          .eq('subscriber_id', user.id)
+          .eq('subscriber_id', user?.id)
           .eq('status', 'active');
 
         const creatorIds = subscriptions?.map(sub => sub.creator_id) || [];
-        query = query.in('creator_id', creatorIds);
-      } else {
-        if (activeTab === 'following') {
-          const { data: following } = await supabase
-            .from('subscriptions')
-            .select('creator_id')
-            .eq('subscriber_id', user.id)
-            .eq('status', 'active');
-
-          const followingIds = following?.map(f => f.creator_id) || [];
-          query = query.in('creator_id', followingIds);
-        } else if (activeTab === 'forYou') {
-          query = query.eq('is_public', true);
+        if (creatorIds.length > 0) {
+          query = query.in('creator_id', creatorIds);
+        } else {
+          setPosts([]);
+          return;
         }
       }
 
-      query = query.order('created_at', { ascending: sortBy === 'oldest' });
+      // Apply sorting
+      switch (sortBy) {
+        case 'oldest':
+          query = query.order('created_at', { ascending: true });
+          break;
+        case 'price_high':
+          query = query.order('price', { ascending: false });
+          break;
+        case 'price_low':
+          query = query.order('price', { ascending: true });
+          break;
+        default: // newest
+          query = query.order('created_at', { ascending: false });
+      }
 
       const { data, error } = await query;
 
-      if (error) {
-        console.error('Error details:', error);
-        throw error;
-      }
-
+      if (error) throw error;
+      console.log('Fetched posts:', data); // Add this for debugging
       setPosts(data || []);
     } catch (err) {
       console.error('Error fetching posts:', err);
+      setError('Failed to load posts');
     } finally {
       setLoading(false);
     }
-  }, [activeTab, sortBy, creatorId, subscribedContent]);
+  }, [contentType, creatorId, subscribedContent, sortBy, user?.id]);
 
   useEffect(() => {
     fetchPosts();
