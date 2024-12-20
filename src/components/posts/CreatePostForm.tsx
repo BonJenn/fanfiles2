@@ -34,9 +34,9 @@ export function CreatePostForm({ onSuccess }: CreatePostFormProps) {
       const fileName = `${user.id}-${Math.random()}-${Date.now()}.${fileExt}`;
       const filePath = `post-uploads/${fileName}`;
       
-      // Upload to the correct path in the posts bucket
+      // Upload to the uploads bucket
       const { error: uploadError, data: uploadData } = await supabase.storage
-        .from('posts')
+        .from('uploads')
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false
@@ -47,16 +47,22 @@ export function CreatePostForm({ onSuccess }: CreatePostFormProps) {
         throw uploadError;
       }
 
-      // Get public URL from posts bucket
+      // Get public URL from uploads bucket
       const { data: urlData } = supabase.storage
-        .from('posts')
+        .from('uploads')
         .getPublicUrl(filePath);
 
       if (!urlData?.publicUrl) {
         throw new Error('Failed to get public URL');
       }
 
-      console.log('File uploaded, public URL:', urlData.publicUrl);
+      // Transform the URL for production if needed
+      const publicUrl = urlData.publicUrl.replace(
+        'localhost:54321',
+        `${process.env.NEXT_PUBLIC_SUPABASE_PROJECT_ID}.supabase.co`
+      );
+
+      console.log('File uploaded, public URL:', publicUrl);
 
       // Create post record
       const { error: insertError } = await supabase
@@ -64,7 +70,7 @@ export function CreatePostForm({ onSuccess }: CreatePostFormProps) {
         .insert({
           title,
           description,
-          url: urlData.publicUrl,
+          url: publicUrl,
           creator_id: user.id,
           type: file.type.startsWith('image/') ? 'image' : 'video',
           is_public: isPublic,
