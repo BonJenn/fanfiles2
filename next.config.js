@@ -6,7 +6,9 @@ const nextConfig = {
       'localhost',
       '127.0.0.1',
       process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('https://', ''),
-      `${process.env.NEXT_PUBLIC_SUPABASE_PROJECT_ID}.supabase.co`
+      `${process.env.NEXT_PUBLIC_SUPABASE_PROJECT_ID}.supabase.co`,
+      'api.dicebear.com',
+      'picsum.photos'
     ].filter(Boolean),
   },
   eslint: {

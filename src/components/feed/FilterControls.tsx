@@ -9,7 +9,8 @@ import {
   TrendingUp,
   TrendingDown,
   X,
-  LayoutGrid
+  LayoutGrid,
+  UserCircle
 } from 'lucide-react';
 
 interface FilterControlsProps {
@@ -28,8 +29,8 @@ export const FilterControls = ({
   onSortChange,
   onTypeChange,
   onSearch,
-  activeTab,
-  onTabChange,
+  activeTab = 'forYou',
+  onTabChange
 }: FilterControlsProps) => {
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -39,34 +40,32 @@ export const FilterControls = ({
   };
 
   return (
-    <div className="flex flex-col space-y-4">
-      {/* Tab Buttons - Centered with spacing */}
-      {activeTab && onTabChange && (
-        <div className="flex justify-center w-full">
-          <div className="inline-flex space-x-2 bg-white/80 rounded-lg shadow-sm">
-            <button
-              onClick={() => onTabChange('following')}
-              className={`px-8 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === 'following'
-                  ? 'text-black bg-gray-50 border border-gray-100'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50 border border-transparent'
-              }`}
-            >
-              Following
-            </button>
-            <button
-              onClick={() => onTabChange('forYou')}
-              className={`px-8 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === 'forYou'
-                  ? 'text-black bg-gray-50 border border-gray-100'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50 border border-transparent'
-              }`}
-            >
-              For You
-            </button>
-          </div>
-        </div>
-      )}
+    <div className="space-y-4">
+      {/* Tab Controls */}
+      <div className="flex gap-4 mb-6">
+        <button
+          onClick={() => onTabChange?.('forYou')}
+          className={`flex items-center gap-2 px-6 py-2 rounded-full transition-all duration-300 ${
+            activeTab === 'forYou'
+              ? 'bg-black text-white shadow-lg scale-105'
+              : 'bg-white/50 text-gray-600 hover:bg-white/80'
+          }`}
+        >
+          <TrendingUp className="w-4 h-4" />
+          For You
+        </button>
+        <button
+          onClick={() => onTabChange?.('following')}
+          className={`flex items-center gap-2 px-6 py-2 rounded-full transition-all duration-300 ${
+            activeTab === 'following'
+              ? 'bg-black text-white shadow-lg scale-105'
+              : 'bg-white/50 text-gray-600 hover:bg-white/80'
+          }`}
+        >
+          <UserCircle className="w-4 h-4" />
+          Following
+        </button>
+      </div>
 
       {/* Search Bar */}
       <div className="w-full">
