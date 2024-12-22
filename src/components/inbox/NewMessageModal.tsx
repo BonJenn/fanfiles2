@@ -65,24 +65,27 @@ export function NewMessageModal({ isOpen, onClose }: NewMessageModalProps) {
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random()}-${Date.now()}.${fileExt}`;
-      const filePath = `message-attachments/${fileName}`;
+      const filePath = `messages/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('uploads')
-        .upload(filePath, file);
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('posts')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
       if (uploadError) {
         console.error('Upload error:', uploadError);
         return null;
       }
 
-      const { data } = supabase.storage
-        .from('uploads')
+      const { data: urlData } = supabase.storage
+        .from('posts')
         .getPublicUrl(filePath);
 
-      return data.publicUrl;
+      return urlData.publicUrl;
     } catch (error) {
-      console.error('Error uploading file:', error);
+      console.error('Upload error:', error);
       return null;
     }
   };
@@ -92,6 +95,14 @@ export function NewMessageModal({ isOpen, onClose }: NewMessageModalProps) {
     setLoading(true);
 
     try {
+      let imageUrl = null;
+      if (file) {
+        imageUrl = await uploadFile(file);
+        if (!imageUrl) {
+          throw new Error('Failed to upload file');
+        }
+      }
+
       if (isMassMessage) {
         const { data: subscribers } = await supabase
           .from('subscriptions')
@@ -104,56 +115,75 @@ export function NewMessageModal({ isOpen, onClose }: NewMessageModalProps) {
           return;
         }
 
-        const { data: massMessage } = await supabase
+        const { data: massMessage, error: massMessageError } = await supabase
           .from('messages')
           .insert({
             sender_id: user.id,
             content: message,
             is_mass_message: true,
             attached_content_id: attachedContent?.id || null,
-            content_price: contentPrice
+            content_price: contentPrice,
+            file: imageUrl,
+            created_at: new Date().toISOString()
           })
           .select()
           .single();
 
-        await supabase.from('mass_message_recipients').insert(
-          subscribers.map(sub => ({
-            message_id: massMessage.id,
-            recipient_id: sub.subscriber_id
-          }))
-        );
+        if (massMessageError) throw massMessageError;
+
+        const { error: recipientError } = await supabase
+          .from('mass_message_recipients')
+          .insert(
+            subscribers.map(sub => ({
+              message_id: massMessage.id,
+              recipient_id: sub.subscriber_id
+            }))
+          );
+
+        if (recipientError) throw recipientError;
+
       } else {
         await Promise.all(
           selectedUsers.map(async (recipient) => {
-            const { data: thread, error: threadError } = await supabase
+            // First try to find existing thread
+            const { data: threads } = await supabase
               .from('message_threads')
-              .insert({
-                user1_id: user.id,
-                user2_id: recipient.id,
-                last_message_at: new Date().toISOString()
-              })
-              .select()
-              .single();
+              .select('*')
+              .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+              .or(`user1_id.eq.${recipient.id},user2_id.eq.${recipient.id}`);
 
-            if (threadError && !threadError.message.includes('duplicate key')) {
-              throw threadError;
+            let threadId;
+            let existingThread = threads?.find(
+              t => (t.user1_id === user.id && t.user2_id === recipient.id) ||
+                   (t.user1_id === recipient.id && t.user2_id === user.id)
+            );
+
+            if (existingThread) {
+              threadId = existingThread.id;
+            } else {
+              // Create new thread
+              const { data: newThread, error: threadError } = await supabase
+                .from('message_threads')
+                .insert({
+                  user1_id: user.id,
+                  user2_id: recipient.id,
+                  last_message_at: new Date().toISOString()
+                })
+                .select()
+                .single();
+
+              if (threadError) {
+                console.error('Thread creation error:', threadError);
+                throw threadError;
+              }
+              threadId = newThread.id;
             }
 
-            const existingThread = threadError ? 
-              await supabase
-                .from('message_threads')
-                .select()
-                .or(`and(user1_id.eq.${user.id},user2_id.eq.${recipient.id}),and(user1_id.eq.${recipient.id},user2_id.eq.${user.id})`)
-                .single()
-                .then(res => res.data)
-              : thread;
-
-            const imageUrl = file ? await uploadFile(file) : null;
-
-            const { data, error } = await supabase
+            // Insert message
+            const { data: sentMessage, error: messageError } = await supabase
               .from('messages')
               .insert({
-                thread_id: existingThread!.id,
+                thread_id: threadId,
                 sender_id: user.id,
                 recipient_id: recipient.id,
                 content: message,
@@ -169,28 +199,28 @@ export function NewMessageModal({ isOpen, onClose }: NewMessageModalProps) {
                   id,
                   name,
                   avatar_url
-                ),
-                attached_content:posts!attached_content_id (
-                  id,
-                  title,
-                  url,
-                  type
                 )
               `)
               .single();
 
-            if (error) {
-              console.error('Message insert error:', error);
-              throw error;
+            if (messageError) {
+              console.error('Message creation error:', messageError);
+              throw messageError;
             }
 
-            await supabase
+            // Update thread
+            const { error: updateError } = await supabase
               .from('message_threads')
               .update({ 
                 last_message_at: new Date().toISOString(),
-                last_message_id: data.id
+                last_message_id: sentMessage.id
               })
-              .eq('id', existingThread!.id);
+              .eq('id', threadId);
+
+            if (updateError) {
+              console.error('Thread update error:', updateError);
+              throw updateError;
+            }
           })
         );
       }
@@ -202,8 +232,8 @@ export function NewMessageModal({ isOpen, onClose }: NewMessageModalProps) {
       setContentPrice(0);
       setFile(null);
     } catch (error) {
-      console.error('Full error:', error);
-      alert('Failed to send message. Please try again.');
+      console.error('Error sending message:', error);
+      alert('Failed to send message');
     } finally {
       setLoading(false);
     }
