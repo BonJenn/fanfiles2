@@ -1,13 +1,13 @@
 'use client';
 
-import { SettingsContent } from '@/components/settings/SettingsContent';
+import { SecuritySettings } from '@/components/settings/SecuritySettings';
 import SettingsLayout from '@/components/settings/SettingsLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Spinner } from '@/components/common/Spinner';
 
-export default function SettingsPage() {
+export default function SecuritySettingsPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
@@ -29,8 +29,7 @@ export default function SettingsPage() {
 
   return (
     <SettingsLayout>
-      <SettingsContent />
+      <SecuritySettings />
     </SettingsLayout>
   );
-}
-
+} 

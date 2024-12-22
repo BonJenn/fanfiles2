@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { Suspense, useState } from 'react';
 import { Spinner } from '@/components/common/Spinner';
 import { useAuth } from '@/contexts/AuthContext';
-import { MenuIcon, XIcon } from 'lucide-react';
+import { MenuIcon, XIcon, Settings } from 'lucide-react';
 
 export const Header = () => {
   const router = useRouter();
@@ -61,8 +61,12 @@ export const Header = () => {
             <Link href="/dashboard" className="p-4 text-darkestBlue" onClick={() => setMenuOpen(false)}>
               Dashboard
             </Link>
-            <Link href="/settings" className="p-4 text-darkestBlue" onClick={() => setMenuOpen(false)}>
-              Settings
+            <Link 
+              href="/settings" 
+              className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 rounded-md"
+            >
+              <Settings className="w-5 h-5" />
+              <span>Settings</span>
             </Link>
             <button onClick={() => { handleSignOut(); setMenuOpen(false); }} className="p-4 text-darkestBlue">
               Sign Out

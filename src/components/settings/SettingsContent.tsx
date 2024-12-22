@@ -1,167 +1,167 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Spinner } from '@/components/common/Spinner';
-import Image from 'next/image';
+import { ImageUpload } from '@/components/profile/ImageUpload';
+import { MapPin } from 'lucide-react';
+
+interface ProfileFormData {
+  name: string;
+  bio: string;
+  location: string;
+  email: string;
+  subscription_price: number;
+}
 
 export function SettingsContent() {
-  const { user, profile, loading } = useAuth();
-  const router = useRouter();
-  const [name, setName] = useState(profile?.name || '');
-  const [bio, setBio] = useState(profile?.bio || '');
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [subscriptionPrice, setSubscriptionPrice] = useState<number | null>(profile?.subscription_price || null);
+  const [formData, setFormData] = useState<ProfileFormData>({
+    name: '',
+    bio: '',
+    location: '',
+    email: '',
+    subscription_price: 0,
+  });
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/');
+    async function fetchProfile() {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (error) throw error;
+        setFormData({
+          name: data.name || '',
+          bio: data.bio || '',
+          location: data.location || '',
+          email: data.email || '',
+          subscription_price: data.subscription_price || 0,
+        });
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+      } finally {
+        setLoading(false);
+      }
     }
-  }, [loading, user, router]);
 
-  useEffect(() => {
-    if (profile) {
-      setName(profile.name || '');
-      setBio(profile.bio || '');
-    }
-  }, [profile]);
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-[calc(100vh-64px)]">
-        <Spinner />
-      </div>
-    );
-  }
-
-  if (!user) return null;
+    fetchProfile();
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
-    setSaving(true);
+    if (!user) return;
 
+    setSaving(true);
     try {
-      const { error: updateError } = await supabase
+      const { error } = await supabase
         .from('profiles')
         .update({
-          name,
-          bio,
-          subscription_price: subscriptionPrice,
-          updated_at: new Date().toISOString(),
+          name: formData.name,
+          bio: formData.bio,
+          location: formData.location,
+          subscription_price: formData.subscription_price,
         })
-        .eq('id', profile?.id);
+        .eq('id', user.id);
 
-      if (updateError) throw updateError;
-      setSuccess('Profile updated successfully');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update profile');
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error updating profile:', error);
     } finally {
       setSaving(false);
     }
   };
 
-  return (
-    <div className="max-w-screen-lg mx-auto container px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Account Settings</h1>
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
-      <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
-        <div className="flex items-start gap-6">
-          <div className="relative w-32 h-32">
-            <Image
-              src={profile?.avatar_url || '/default_profile_picture.jpg'}
-              alt={profile?.name || 'Profile'}
-              fill
-              className="rounded-full object-cover"
+  if (loading) {
+    return <div className="flex justify-center"><Spinner /></div>;
+  }
+
+  return (
+    <div className="max-w-2xl">
+      <h1 className="text-2xl font-bold mb-6">Profile Settings</h1>
+      
+      <form onSubmit={handleSubmit} className="space-y-8">
+        <div className="flex flex-col items-center space-y-4">
+          <ImageUpload
+            currentImageUrl={user?.user_metadata?.avatar_url}
+            onUploadComplete={(url) => {}}
+          />
+        </div>
+
+        <div className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Name</label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-black focus:ring-black"
             />
           </div>
-          <div className="flex-1">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {error && (
-                <div className="bg-red-50 text-red-500 p-4 rounded-md">{error}</div>
-              )}
-              {success && (
-                <div className="bg-green-50 text-green-500 p-4 rounded-md">{success}</div>
-              )}
 
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                  Display Name
-                </label>
-                <input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-black focus:border-black"
-                />
-              </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Bio</label>
+            <textarea
+              name="bio"
+              value={formData.bio}
+              onChange={handleChange}
+              rows={4}
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-black focus:ring-black"
+            />
+          </div>
 
-              <div>
-                <label htmlFor="bio" className="block text-sm font-medium text-gray-700">
-                  Bio
-                </label>
-                <textarea
-                  id="bio"
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  rows={4}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-black focus:border-black"
-                />
-              </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Location</label>
+            <div className="mt-1 relative">
+              <input
+                type="text"
+                name="location"
+                value={formData.location}
+                onChange={handleChange}
+                className="block w-full rounded-md border border-gray-300 pl-10 py-2 focus:border-black focus:ring-black"
+              />
+              <MapPin className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+            </div>
+          </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Email
-                </label>
-                <div className="mt-1 block w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-gray-500">
-                  {user.email}
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="subscriptionPrice" className="block text-sm font-medium text-gray-700">
-                  Monthly Subscription Price (USD)
-                </label>
-                <div className="mt-1 relative rounded-md shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span className="text-gray-500 sm:text-sm">$</span>
-                  </div>
-                  <input
-                    type="number"
-                    id="subscriptionPrice"
-                    min="0"
-                    step="0.01"
-                    value={subscriptionPrice ? (subscriptionPrice / 100).toFixed(2) : ''}
-                    onChange={(e) => setSubscriptionPrice(e.target.value ? Math.round(parseFloat(e.target.value) * 100) : null)}
-                    className="focus:ring-black focus:border-black block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-md"
-                    placeholder="0.00"
-                  />
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                    <span className="text-gray-500 sm:text-sm">/month</span>
-                  </div>
-                </div>
-                <p className="mt-1 text-sm text-gray-500">
-                  Leave empty for free subscriptions
-                </p>
-              </div>
-
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-white bg-black hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black disabled:opacity-50"
-              >
-                {saving ? 'Saving...' : 'Save Changes'}
-              </button>
-            </form>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Subscription Price (USD)
+            </label>
+            <input
+              type="number"
+              name="subscription_price"
+              value={formData.subscription_price}
+              onChange={handleChange}
+              min="0"
+              step="0.01"
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-black focus:ring-black"
+            />
           </div>
         </div>
-      </div>
+
+        <button
+          type="submit"
+          disabled={saving}
+          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-white bg-black hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black disabled:opacity-50"
+        >
+          {saving ? 'Saving...' : 'Save Changes'}
+        </button>
+      </form>
     </div>
   );
 }
