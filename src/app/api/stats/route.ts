@@ -4,15 +4,18 @@ import prisma from '@/lib/prisma';
 export async function GET() {
   try {
     const [creatorCount, supporterCount, earnings] = await Promise.all([
-      prisma.user.count({
-        where: { role: 'CREATOR' }
+      prisma.profiles.count({
+        where: { subscription_price: { gt: 0 } }
       }),
-      prisma.user.count({
-        where: { role: 'SUPPORTER' }
+      prisma.profiles.count({
+        where: { subscription_price: { equals: null } }
       }),
-      prisma.payment.aggregate({
+      prisma.transactions.aggregate({
         _sum: {
           amount: true
+        },
+        where: {
+          status: 'completed'
         }
       })
     ]);
