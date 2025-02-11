@@ -12,6 +12,7 @@ interface Profile {
   avatar_url: string | null;
   bio: string | null;
   subscription_price: number | null;
+  is_creator: boolean;
 }
 
 interface AuthContextType {

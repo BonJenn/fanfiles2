@@ -16,28 +16,44 @@ interface PaymentMethod {
 
 export function PaymentSettings() {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [subscriptionPrice, setSubscriptionPrice] = useState<number>(0);
-  const [earnings, setEarnings] = useState<number>(0);
+  const [isCreator, setIsCreator] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [earnings, setEarnings] = useState(0);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+
+  // Fetch initial data
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchProfile = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('subscription_price, is_creator')
+          .eq('id', user.id)
+          .single();
+
+        if (error) throw error;
+
+        setSubscriptionPrice(data.subscription_price || 0);
+        setIsCreator(data.is_creator || false);
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [user]);
 
   useEffect(() => {
     async function fetchPaymentData() {
       if (!user) return;
       
       try {
-        // Fetch profile data for subscription price
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('subscription_price')
-          .eq('id', user.id)
-          .single();
-
-        if (profileError) throw profileError;
-        
-        setSubscriptionPrice(profile.subscription_price || 0);
-
         // TODO: Implement Stripe payment methods fetch
         // This is a placeholder for demo purposes
         setPaymentMethods([
@@ -56,18 +72,11 @@ export function PaymentSettings() {
 
       } catch (error) {
         console.error('Error fetching payment data:', error);
-      } finally {
-        setLoading(false);
       }
     }
 
     fetchPaymentData();
   }, [user]);
-
-  const handlePriceChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newPrice = parseFloat(e.target.value);
-    setSubscriptionPrice(newPrice);
-  };
 
   const handleSavePrice = async () => {
     if (!user) return;
@@ -76,10 +85,14 @@ export function PaymentSettings() {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ subscription_price: subscriptionPrice })
+        .update({ 
+          subscription_price: subscriptionPrice,
+          is_creator: subscriptionPrice > 0, // Automatically set creator status when price is set
+        })
         .eq('id', user.id);
 
       if (error) throw error;
+      setIsCreator(subscriptionPrice > 0);
     } catch (error) {
       console.error('Error updating subscription price:', error);
     } finally {
@@ -96,40 +109,64 @@ export function PaymentSettings() {
       <h1 className="text-2xl font-bold mb-6">Payment Settings</h1>
 
       <div className="space-y-8">
-        {/* Earnings Overview */}
-        <div className="bg-gradient-to-r from-black to-gray-800 text-white rounded-2xl p-6">
-          <h2 className="text-lg font-medium mb-4">Total Earnings</h2>
-          <div className="text-3xl font-bold">${earnings.toFixed(2)}</div>
+        {/* Creator Status */}
+        <div className="bg-white rounded-xl shadow-sm border p-6">
+          <h2 className="text-lg font-medium mb-4">Creator Status</h2>
+          <div className="flex items-center space-x-2">
+            <div className={`px-3 py-1 rounded-full text-sm ${
+              isCreator 
+                ? 'bg-green-100 text-green-800' 
+                : 'bg-gray-100 text-gray-800'
+            }`}>
+              {isCreator ? 'Creator' : 'Subscriber'}
+            </div>
+            {!isCreator && (
+              <p className="text-sm text-gray-600">
+                Set a subscription price to become a creator
+              </p>
+            )}
+          </div>
         </div>
 
+        {/* Earnings Overview (show only for creators) */}
+        {isCreator && (
+          <div className="bg-gradient-to-r from-black to-gray-800 text-white rounded-2xl p-6">
+            <h2 className="text-lg font-medium mb-4">Total Earnings</h2>
+            <div className="text-3xl font-bold">${earnings.toFixed(2)}</div>
+          </div>
+        )}
+
         {/* Subscription Price */}
-        <div className="bg-white/50 rounded-2xl p-6 backdrop-blur-sm">
+        <div className="bg-white rounded-xl shadow-sm border p-6">
           <h2 className="text-lg font-medium mb-4">Subscription Price</h2>
-          <div className="flex gap-4 items-end">
-            <div className="flex-1">
+          <div className="flex items-end gap-4">
+            <div>
               <label className="block text-sm text-gray-600 mb-2">
-                Monthly Subscription Price (USD)
+                Monthly subscription price (USD)
               </label>
               <div className="relative">
-                <DollarSign className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                <span className="absolute left-3 top-2 text-gray-500">$</span>
                 <input
                   type="number"
                   min="0"
                   step="0.01"
                   value={subscriptionPrice}
-                  onChange={handlePriceChange}
-                  className="block w-full rounded-md border border-gray-300 pl-10 py-2 focus:border-black focus:ring-black"
+                  onChange={(e) => setSubscriptionPrice(Number(e.target.value))}
+                  className="pl-7 pr-4 py-2 border rounded-lg w-32"
                 />
               </div>
             </div>
             <button
               onClick={handleSavePrice}
               disabled={saving}
-              className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 disabled:opacity-50"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
               {saving ? 'Saving...' : 'Save Price'}
             </button>
           </div>
+          <p className="mt-2 text-sm text-gray-500">
+            This is the amount subscribers will pay monthly to access your content
+          </p>
         </div>
 
         {/* Payment Methods */}
