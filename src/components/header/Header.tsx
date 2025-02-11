@@ -8,6 +8,7 @@ import { Suspense, useState } from 'react';
 import { Spinner } from '@/components/common/Spinner';
 import { useAuth } from '@/contexts/AuthContext';
 import { MenuIcon, XIcon, Settings } from 'lucide-react';
+import Image from 'next/image';
 
 export const Header = () => {
   const router = useRouter();
@@ -27,7 +28,13 @@ export const Header = () => {
     <header className="border-b sticky top-0 z-50 bg-white">
       <div className="max-w-screen-lg mx-auto px-4 h-16 flex items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="text-xl font-bold text-darkestBlue">
+        <Link href="/" className="text-xl font-bold text-darkestBlue flex items-center gap-2">
+          <Image 
+            src="/fanfiles_logo.png"
+            alt="FanFiles Icon"
+            width={40}
+            height={40}
+          />
           FanFiles
         </Link>
 

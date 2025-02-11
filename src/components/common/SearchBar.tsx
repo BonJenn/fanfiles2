@@ -15,7 +15,7 @@ export const SearchBar = ({ onSearch, placeholder = 'Search creators...' }: Sear
   const [query, setQuery] = useState('');
 
   useEffect(() => {
-    const urlQuery = searchParams.get('q');
+    const urlQuery = searchParams?.get('q');
     if (urlQuery && !query) {
       setQuery(urlQuery);
     }

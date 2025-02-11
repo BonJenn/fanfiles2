@@ -16,7 +16,7 @@ export default function SearchPage() {
 
 function SearchPageContent() {
   const searchParams = useSearchParams();
-  const query = searchParams.get('q') || '';
+  const query = searchParams?.get('q') || '';
   
   return (
     <div className="container mx-auto px-4 py-8">

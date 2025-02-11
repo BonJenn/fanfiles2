@@ -216,7 +216,7 @@ const SubscribeButton = ({ profile, onSubscribe }: { profile: CreatorProfile; on
 
 export default function CreatorProfile() {
   const params = useParams();
-  const creatorId = typeof params.id === 'string' ? params.id : params.id?.[0];
+  const creatorId = params?.id ? (typeof params.id === 'string' ? params.id : params.id[0]) : undefined;
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
