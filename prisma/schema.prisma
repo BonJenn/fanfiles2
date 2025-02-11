@@ -1,0 +1,203 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["auth", "public"]
+}
+
+/// This model contains row level security and requires additional setup for migrations
+model message_threads {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user1_id        String    @db.Uuid
+  user2_id        String    @db.Uuid
+  last_message_id String?   @db.Uuid
+  last_message_at DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamptz(6)
+  created_at      DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamptz(6)
+
+  @@unique([user1_id, user2_id])
+  @@index([user1_id])
+  @@index([user2_id])
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations
+model messages {
+  id                  String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  thread_id           String    @db.Uuid
+  sender_id           String    @db.Uuid
+  recipient_id        String    @db.Uuid
+  content             String
+  is_mass_message     Boolean?  @default(false)
+  attached_content_id String?   @db.Uuid
+  content_price       Int?      @default(0)
+  read_at             DateTime? @db.Timestamptz(6)
+  created_at          DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamptz(6)
+  file                String?
+
+  @@index([created_at(sort: Desc)], map: "idx_messages_created_at")
+  @@index([thread_id], map: "idx_messages_thread_id")
+  @@index([read_at])
+  @@index([recipient_id])
+  @@index([sender_id])
+  @@index([thread_id])
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations
+model notification_preferences {
+  id                   String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_id              String?   @db.Uuid
+  email_new_message    Boolean?  @default(true)
+  email_new_subscriber Boolean?  @default(true)
+  email_new_like       Boolean?  @default(true)
+  email_new_purchase   Boolean?  @default(true)
+  push_new_message     Boolean?  @default(true)
+  push_new_subscriber  Boolean?  @default(true)
+  push_new_like        Boolean?  @default(false)
+  push_new_purchase    Boolean?  @default(true)
+  created_at           DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamptz(6)
+  updated_at           DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamptz(6)
+
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations
+model post_access {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  post_id    String    @db.Uuid
+  user_id    String    @db.Uuid
+  created_at DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamptz(6)
+
+  @@unique([post_id, user_id])
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations
+model post_views {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  post_id    String    @db.Uuid
+  viewer_id  String    @db.Uuid
+  creator_id String    @db.Uuid
+  created_at DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamptz(6)
+
+  @@unique([post_id, viewer_id])
+  @@index([creator_id])
+  @@index([post_id])
+  @@index([viewer_id])
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations
+model profiles {
+  id                   String    @id @db.Uuid
+  name                 String?   @db.VarChar(255)
+  email                String    @unique @db.VarChar(255)
+  avatar_url           String?
+  bio                  String?
+  subscriber_count     Int?      @default(0)
+  post_count           Int?      @default(0)
+  subscription_price   Int?
+  stripe_customer_id   String?   @unique
+  stripe_account_id    String?   @unique
+  onboarding_completed Boolean?  @default(false)
+  created_at           DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamptz(6)
+  updated_at           DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamptz(6)
+
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations
+model subscriptions {
+  id                     String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  creator_id             String    @db.Uuid
+  subscriber_id          String    @db.Uuid
+  status                 String?   @default("pending") @db.VarChar(50)
+  stripe_subscription_id String?   @unique
+  current_period_end     DateTime? @db.Timestamptz(6)
+  created_at             DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamptz(6)
+  updated_at             DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamptz(6)
+
+  @@unique([creator_id, subscriber_id])
+  @@index([creator_id, subscriber_id], map: "subscriptions_creator_subscriber_idx")
+  @@index([status])
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations
+model transactions {
+  id                       String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  post_id                  String?   @db.Uuid
+  buyer_id                 String    @db.Uuid
+  creator_id               String    @db.Uuid
+  amount                   Int
+  stripe_payment_intent_id String?   @unique
+  status                   String?   @default("pending") @db.VarChar(50)
+  created_at               DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamptz(6)
+
+  @@index([buyer_id])
+  @@index([creator_id])
+  @@schema("public")
+}
+
+enum aal_level {
+  aal1
+  aal2
+  aal3
+
+  @@schema("auth")
+}
+
+enum code_challenge_method {
+  s256
+  plain
+
+  @@schema("auth")
+}
+
+enum factor_status {
+  unverified
+  verified
+
+  @@schema("auth")
+}
+
+enum factor_type {
+  totp
+  webauthn
+  phone
+
+  @@schema("auth")
+}
+
+enum one_time_token_type {
+  confirmation_token
+  reauthentication_token
+  recovery_token
+  email_change_token_new
+  email_change_token_current
+  phone_change_token
+
+  @@schema("auth")
+}
+
+/// This model contains row level security and requires additional setup for migrations
+model posts {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  creator_id  String    @db.Uuid
+  title       String?   @db.VarChar(255)
+  description String?
+  url         String?
+  type        String    @db.VarChar(50)
+  price       Int?      @default(0)
+  is_public   Boolean?  @default(false)
+  created_at  DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamptz(6)
+  updated_at  DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamptz(6)
+
+  @@index([created_at])
+  @@index([creator_id])
+  @@schema("public")
+}
